@@ -15,6 +15,7 @@ Use this skill when the user wants to operate the Codex DeepSeek Lifeline plugin
 - Stores the DeepSeek API key in the macOS launch environment with `launchctl setenv CODEX_DEEPSEEK_KEY ...`.
 - Starts or restarts the local proxy on `127.0.0.1:4446`.
 - Writes proxy logs to `~/.codex/deepseek-proxy.log`.
+- Writes usage and cost-estimate records to `~/.codex/deepseek-usage.jsonl`.
 
 Never ask the user to put their API key in source code, README files, Git commits, or project config files.
 
@@ -83,6 +84,29 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 -> /v1/responses -> https://api.deepseek.com/v1/chat/completions [deepseek-v4-pro]
 ```
 
+## Estimate Cost
+
+Use:
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost
+```
+
+Other views:
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost today
+~/.codex/codex-deepseek-switch.sh cost all
+~/.codex/codex-deepseek-switch.sh cost tail
+```
+
+The proxy writes one JSONL record per successful upstream response to `~/.codex/deepseek-usage.jsonl`. The estimate uses DeepSeek official V4 prices per 1M tokens:
+
+- `deepseek-v4-flash`: cache-hit input `$0.0028`, cache-miss input `$0.14`, output `$0.28`.
+- `deepseek-v4-pro`: cache-hit input `$0.003625`, cache-miss input `$0.435`, output `$0.87`.
+
+If DeepSeek does not return explicit cache-miss tokens, the proxy estimates cache miss as total input minus cache-hit input. Always describe this as an estimate and tell the user to verify final charges in the DeepSeek billing console.
+
 ## Disable DeepSeek
 
 ```bash
@@ -113,6 +137,7 @@ CODEX_DEEPSEEK_KEY=(not set)
 - `EADDRINUSE 127.0.0.1:4446`: run the switch command again; it stops the old proxy before starting a new one.
 - Tool calls appear as plain text: confirm `CODEX_DEEPSEEK_THINKING=disabled` in `status`, then restart Codex Desktop.
 - Disable command appears as `Tool call exec_command ...` text instead of executing: tell the user this means the current model response did not actually execute tools, then run `~/.codex/codex-deepseek-switch.sh off` from a tool-capable session or ask the user to paste that command into Terminal.
+- Cost shows no data: make sure at least one request has gone through the proxy after upgrading to the cost-estimate version, then check `~/.codex/deepseek-usage.jsonl`.
 - `rg: command not found`: use `grep -nE` for shell checks on machines without ripgrep.
 
 ## Safety

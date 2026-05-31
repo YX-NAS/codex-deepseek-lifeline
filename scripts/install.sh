@@ -65,6 +65,120 @@ fi
 exec /Applications/Codex.app/Contents/Resources/codex --profile deepseek "$@"
 SH
 
+cat > "$CODEX_HOME/codex-deepseek-cost.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+USAGE_LOG="${CODEX_DEEPSEEK_USAGE_LOG:-$HOME/.codex/deepseek-usage.jsonl}"
+MODE="${1:-summary}"
+
+if [ ! -f "$USAGE_LOG" ]; then
+  echo "No usage log found at $USAGE_LOG"
+  exit 0
+fi
+
+exec "__NODE_BIN__" - "$USAGE_LOG" "$MODE" <<'JS'
+const fs = require("node:fs");
+
+const [,, file, mode] = process.argv;
+const lines = fs.readFileSync(file, "utf8").split(/\n+/).filter(Boolean);
+const records = [];
+
+for (const line of lines) {
+  try {
+    records.push(JSON.parse(line));
+  } catch {
+    // Ignore malformed lines so one bad write does not break summaries.
+  }
+}
+
+function localDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+const today = localDateString(new Date());
+const isToday = (record) => {
+  if (!record.timestamp) return false;
+  const date = new Date(record.timestamp);
+  return !Number.isNaN(date.getTime()) && localDateString(date) === today;
+};
+
+function summarize(items) {
+  const total = {
+    requests: items.length,
+    input: 0,
+    cacheHit: 0,
+    cacheMiss: 0,
+    output: 0,
+    usd: 0
+  };
+  const byModel = new Map();
+
+  for (const item of items) {
+    const tokens = item.tokens || {};
+    const usd = item.estimated_usd || {};
+    total.input += tokens.input || 0;
+    total.cacheHit += tokens.cacheHit || 0;
+    total.cacheMiss += tokens.cacheMiss || 0;
+    total.output += tokens.output || 0;
+    total.usd += usd.total || 0;
+
+    const model = item.model || "unknown";
+    if (!byModel.has(model)) {
+      byModel.set(model, { requests: 0, input: 0, cacheHit: 0, cacheMiss: 0, output: 0, usd: 0 });
+    }
+    const row = byModel.get(model);
+    row.requests += 1;
+    row.input += tokens.input || 0;
+    row.cacheHit += tokens.cacheHit || 0;
+    row.cacheMiss += tokens.cacheMiss || 0;
+    row.output += tokens.output || 0;
+    row.usd += usd.total || 0;
+  }
+
+  return { total, byModel };
+}
+
+function printSummary(title, items) {
+  const { total, byModel } = summarize(items);
+  console.log(title);
+  console.log(`requests=${total.requests}`);
+  console.log(`input_tokens=${total.input} cache_hit=${total.cacheHit} cache_miss=${total.cacheMiss} output_tokens=${total.output}`);
+  console.log(`estimated_usd=$${total.usd.toFixed(6)}`);
+  if (byModel.size) {
+    console.log("");
+    console.log("by_model:");
+    for (const [model, row] of byModel) {
+      console.log(`  ${model}: requests=${row.requests} input=${row.input} cache_hit=${row.cacheHit} cache_miss=${row.cacheMiss} output=${row.output} estimated_usd=$${row.usd.toFixed(6)}`);
+    }
+  }
+}
+
+if (mode === "today") {
+  printSummary(`DeepSeek cost estimate for ${today}`, records.filter(isToday));
+} else if (mode === "all" || mode === "summary") {
+  printSummary("DeepSeek cost estimate total", records);
+  console.log("");
+  printSummary(`DeepSeek cost estimate for ${today}`, records.filter(isToday));
+} else if (mode === "tail") {
+  for (const record of records.slice(-10)) {
+    console.log(JSON.stringify(record));
+  }
+} else {
+  console.log("Usage: ~/.codex/codex-deepseek-cost.sh [summary|today|all|tail]");
+  process.exit(1);
+}
+
+console.log("");
+console.log(`source=${file}`);
+console.log("note=estimate only; verify against the DeepSeek billing console for final charges");
+JS
+SH
+NODE_BIN_FOR_TEMPLATE="$NODE_BIN" perl -0pi -e 's#__NODE_BIN__#$ENV{NODE_BIN_FOR_TEMPLATE}#g' "$CODEX_HOME/codex-deepseek-cost.sh"
+
 cat > "$CODEX_HOME/codex-deepseek-on.sh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -166,11 +280,13 @@ Usage:
   ~/.codex/codex-deepseek-switch.sh on [model]
   ~/.codex/codex-deepseek-switch.sh off
   ~/.codex/codex-deepseek-switch.sh status
+  ~/.codex/codex-deepseek-switch.sh cost [summary|today|all|tail]
 
 Examples:
   ~/.codex/codex-deepseek-switch.sh on
   ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
   ~/.codex/codex-deepseek-switch.sh off
+  ~/.codex/codex-deepseek-switch.sh cost today
 EOF
 }
 
@@ -384,6 +500,9 @@ case "${1:-}" in
   status)
     status
     ;;
+  cost)
+    exec "$CODEX_HOME/codex-deepseek-cost.sh" "${2:-summary}"
+    ;;
   *)
     usage
     exit 1
@@ -394,6 +513,7 @@ SH
 chmod 700 \
   "$CODEX_HOME/start-deepseek-proxy.sh" \
   "$CODEX_HOME/codex-deepseek-exec.sh" \
+  "$CODEX_HOME/codex-deepseek-cost.sh" \
   "$CODEX_HOME/codex-deepseek-switch.sh" \
   "$CODEX_HOME/codex-deepseek-on.sh" \
   "$CODEX_HOME/codex-deepseek-off.sh" \

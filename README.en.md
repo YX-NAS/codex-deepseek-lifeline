@@ -2,7 +2,7 @@
 
 Codex DeepSeek Lifeline is a local DeepSeek proxy for Codex Desktop and Codex CLI. It translates Codex-style Responses API requests into DeepSeek-compatible Chat Completions requests, so you can keep working when your official Codex quota is unavailable or when you want to temporarily use DeepSeek.
 
-Current stable version: `1.1.2`
+Current stable version: `1.2.0`
 
 Starting with `1.1.0`, this project is packaged as a Codex plugin with `.codex-plugin/plugin.json` and the `deepseek-lifeline` skill.
 
@@ -108,6 +108,7 @@ The switch command automatically:
 - Starts a new local proxy in the background.
 - Uses a macOS LaunchAgent to keep the proxy process stable.
 - Writes proxy logs to `~/.codex/deepseek-proxy.log`.
+- Writes token usage and cost-estimate records to `~/.codex/deepseek-usage.jsonl`.
 
 After turning it on, fully quit and reopen Codex Desktop. Starting a new chat alone may not reload the config.
 
@@ -148,6 +149,35 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 -> /v1/responses -> https://api.deepseek.com/v1/chat/completions [deepseek-v4-pro]
 ```
 
+## Cost Estimate
+
+Show total and today's estimate:
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost
+```
+
+Show today only:
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost today
+```
+
+Show the last 10 raw records:
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost tail
+```
+
+The proxy records DeepSeek usage results in `~/.codex/deepseek-usage.jsonl`. Built-in official V4 prices, per 1M tokens:
+
+| Model | Cache-hit input | Cache-miss input | Output |
+| --- | ---: | ---: | ---: |
+| `deepseek-v4-flash` | `$0.0028` | `$0.14` | `$0.28` |
+| `deepseek-v4-pro` | `$0.003625` | `$0.435` | `$0.87` |
+
+If DeepSeek does not return explicit cache-miss tokens, the proxy estimates cache miss as `input_tokens - cache_hit_tokens`. This feature is only an estimate; verify final charges in the DeepSeek billing console.
+
 ## Turn Off
 
 ```bash
@@ -181,6 +211,9 @@ If Codex shows `Tool call exec_command ...` as plain text instead of actually tu
 
 # Watch logs
 tail -f ~/.codex/deepseek-proxy.log
+
+# Show cost estimate
+~/.codex/codex-deepseek-switch.sh cost
 ```
 
 Legacy commands still work:
@@ -266,6 +299,7 @@ Uninstall will:
 - Stop the local proxy on port `4446`.
 - Clear related macOS launch environment variables.
 - Remove `~/.codex/deepseek-proxy.log`.
+- Remove `~/.codex/deepseek-usage.jsonl`.
 
 ## Limitations
 

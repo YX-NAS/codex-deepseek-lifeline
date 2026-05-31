@@ -3,6 +3,9 @@
 
 const http = require("node:http");
 const https = require("node:https");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 const PORT = Number(process.env.CODEX_DEEPSEEK_PROXY_PORT || "4446");
 const HOST = process.env.CODEX_DEEPSEEK_PROXY_HOST || "127.0.0.1";
@@ -11,6 +14,14 @@ const MODEL_NAME = process.env.CODEX_MODEL || "deepseek-v4-flash";
 const THINKING_MODE = process.env.CODEX_DEEPSEEK_THINKING || "disabled";
 const API_KEY = process.env.CODEX_DEEPSEEK_KEY || "";
 const MAX_CONCURRENT = Number(process.env.CODEX_PROXY_MAX_CONCURRENT || "1");
+const USAGE_LOG = process.env.CODEX_DEEPSEEK_USAGE_LOG || path.join(os.homedir(), ".codex", "deepseek-usage.jsonl");
+
+const PRICES_PER_1M = {
+  "deepseek-v4-flash": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
+  "deepseek-v4-pro": { inputCacheHit: 0.003625, inputCacheMiss: 0.435, output: 0.87 },
+  "deepseek-chat": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
+  "deepseek-reasoner": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 }
+};
 
 if (!API_KEY) {
   console.error("CODEX_DEEPSEEK_KEY is not set.");
@@ -143,13 +154,70 @@ function responsesToChatCompletions(body) {
 
 function normalizeUsage(usage) {
   if (!usage) return null;
+  const inputTokens = usage.prompt_tokens || usage.input_tokens || 0;
+  const outputTokens = usage.completion_tokens || usage.output_tokens || 0;
+  const cachedTokens = usage.prompt_cache_hit_tokens || usage.input_cache_hit_tokens || 0;
   return {
-    input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
-    output_tokens: usage.completion_tokens || usage.output_tokens || 0,
-    total_tokens: usage.total_tokens || 0,
-    input_tokens_details: { cached_tokens: usage.prompt_cache_hit_tokens || 0 },
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    total_tokens: usage.total_tokens || inputTokens + outputTokens,
+    input_tokens_details: { cached_tokens: cachedTokens },
     output_tokens_details: { reasoning_tokens: 0 }
   };
+}
+
+function usageTokens(usage) {
+  const input = usage?.prompt_tokens || usage?.input_tokens || 0;
+  const output = usage?.completion_tokens || usage?.output_tokens || 0;
+  const cacheHit = usage?.prompt_cache_hit_tokens || usage?.input_cache_hit_tokens || 0;
+  const explicitMiss = usage?.prompt_cache_miss_tokens || usage?.input_cache_miss_tokens;
+  const cacheMiss = explicitMiss == null ? Math.max(input - cacheHit, 0) : explicitMiss;
+  return { input, output, cacheHit, cacheMiss, total: usage?.total_tokens || input + output };
+}
+
+function estimateCost(model, usage) {
+  const prices = PRICES_PER_1M[model] || PRICES_PER_1M[MODEL_NAME];
+  const tokens = usageTokens(usage);
+  if (!prices || !usage) return { tokens, usd: null, prices: null };
+
+  const inputCacheHitUsd = tokens.cacheHit * prices.inputCacheHit / 1_000_000;
+  const inputCacheMissUsd = tokens.cacheMiss * prices.inputCacheMiss / 1_000_000;
+  const outputUsd = tokens.output * prices.output / 1_000_000;
+  return {
+    tokens,
+    usd: {
+      input_cache_hit: inputCacheHitUsd,
+      input_cache_miss: inputCacheMissUsd,
+      output: outputUsd,
+      total: inputCacheHitUsd + inputCacheMissUsd + outputUsd
+    },
+    prices
+  };
+}
+
+function appendUsageRecord(model, usage, reqUrl) {
+  if (!usage) return;
+  const estimate = estimateCost(model, usage);
+  const record = {
+    timestamp: new Date().toISOString(),
+    model,
+    route: reqUrl,
+    thinking: THINKING_MODE,
+    tokens: estimate.tokens,
+    estimated_usd: estimate.usd,
+    prices_per_1m: estimate.prices,
+    pricing_note: "Estimate only. Prices are based on DeepSeek official V4 pricing; if cache-miss detail is absent, uncached input is inferred as input minus cache-hit tokens."
+  };
+
+  try {
+    fs.mkdirSync(path.dirname(USAGE_LOG), { recursive: true });
+    fs.appendFileSync(USAGE_LOG, `${JSON.stringify(record)}\n`);
+    if (estimate.usd) {
+      console.log(`cost estimate [${model}] input=${estimate.tokens.input} output=${estimate.tokens.output} total=$${estimate.usd.total.toFixed(6)}`);
+    }
+  } catch (error) {
+    console.error(`Failed to write usage log: ${error.message}`);
+  }
 }
 
 function chatCompletionToSse(data) {
@@ -330,9 +398,11 @@ async function doProxyRequest({ req, res, body }) {
             res.writeHead(upstreamRes.statusCode || 502, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: parsed.error }));
           } else if (body.stream === false) {
+            appendUsageRecord(parsed.model || chatBody.model, parsed.usage, req.url);
             res.writeHead(upstreamRes.statusCode || 200, { "Content-Type": "application/json" });
             res.end(JSON.stringify(chatCompletionToResponse(parsed)));
           } else {
+            appendUsageRecord(parsed.model || chatBody.model, parsed.usage, req.url);
             res.writeHead(upstreamRes.statusCode || 200, {
               "Content-Type": "text/event-stream",
               "Cache-Control": "no-cache"
@@ -393,6 +463,8 @@ const server = http.createServer(async (req, res) => {
       status: "ok",
       target: TARGET_BASE,
       model: MODEL_NAME,
+      thinking: THINKING_MODE,
+      usage_log: USAGE_LOG,
       queue: pendingQueue.length,
       active: activeRequests
     }));
@@ -417,4 +489,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`codex-deepseek-lifeline proxy listening on http://${HOST}:${PORT}`);
   console.log(`target=${TARGET_BASE} model=${MODEL_NAME} thinking=${THINKING_MODE}`);
+  console.log(`usage_log=${USAGE_LOG}`);
 });

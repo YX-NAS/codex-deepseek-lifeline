@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Added token usage and cost-estimate logging to `~/.codex/deepseek-usage.jsonl`.
+- Added `codex-deepseek-switch.sh cost` and `codex-deepseek-cost.sh` for total, daily, and tail views.
+- Added built-in DeepSeek V4 Flash/Pro pricing estimates based on official per-1M-token prices.
+- Updated plugin skill and multilingual README files with cost-estimate usage.
+
 ## 1.1.2
 
 - Tightened the plugin skill instructions for disabling DeepSeek Lifeline.

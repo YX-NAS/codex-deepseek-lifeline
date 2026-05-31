@@ -2,7 +2,7 @@
 
 Codex DeepSeek Lifeline 是一个给 Codex Desktop / Codex CLI 使用的本地 DeepSeek 代理。它会把 Codex 的 Responses API 请求转换成 DeepSeek 兼容的 Chat Completions 请求，用来在 Codex 官方额度不可用、或你想临时切到 DeepSeek 时继续工作。
 
-当前稳定版本：`1.1.2`
+当前稳定版本：`1.2.0`
 
 从 `1.1.0` 开始，本项目已封装为 Codex 插件，包含 `.codex-plugin/plugin.json` 和 `deepseek-lifeline` skill。
 
@@ -108,6 +108,7 @@ DeepSeek API Key:
 - 在后台启动新的本地代理。
 - 使用 macOS LaunchAgent 保持代理进程稳定运行。
 - 把代理日志写到 `~/.codex/deepseek-proxy.log`。
+- 把 token 用量和费用估算写到 `~/.codex/deepseek-usage.jsonl`。
 
 开启后请完全退出并重新打开 Codex Desktop。只开新对话不一定会重新读取配置。
 
@@ -148,6 +149,35 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 -> /v1/responses -> https://api.deepseek.com/v1/chat/completions [deepseek-v4-pro]
 ```
 
+## 费用估算
+
+查看总计和今日估算：
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost
+```
+
+只看今日：
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost today
+```
+
+查看最近 10 条原始记录：
+
+```bash
+~/.codex/codex-deepseek-switch.sh cost tail
+```
+
+代理会根据 DeepSeek 返回的 usage 写入 `~/.codex/deepseek-usage.jsonl`。当前内置官方 V4 价格如下，单位为每 1M tokens：
+
+| 模型 | Cache hit input | Cache miss input | Output |
+| --- | ---: | ---: | ---: |
+| `deepseek-v4-flash` | `$0.0028` | `$0.14` | `$0.28` |
+| `deepseek-v4-pro` | `$0.003625` | `$0.435` | `$0.87` |
+
+如果 DeepSeek 没有返回明确的 cache miss tokens，代理会用 `input_tokens - cache_hit_tokens` 推算 cache miss。这个功能只做估算，最终费用请以 DeepSeek 控制台账单为准。
+
 ## 关闭并恢复
 
 ```bash
@@ -181,6 +211,9 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 
 # 查看日志
 tail -f ~/.codex/deepseek-proxy.log
+
+# 查看费用估算
+~/.codex/codex-deepseek-switch.sh cost
 ```
 
 旧命令仍可用：
@@ -266,6 +299,7 @@ bash scripts/uninstall.sh
 - 停止 `4446` 上的本地代理。
 - 清除相关 macOS launch 环境变量。
 - 删除 `~/.codex/deepseek-proxy.log`。
+- 删除 `~/.codex/deepseek-usage.jsonl`。
 
 ## 限制
 

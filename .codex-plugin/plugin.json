@@ -1,6 +1,6 @@
 {
   "name": "codex-deepseek-lifeline",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "One-command DeepSeek fallback for Codex Desktop and Codex CLI through a local proxy.",
   "author": {
     "name": "YX-NAS",
@@ -31,7 +31,7 @@
     "defaultPrompt": [
       "Enable DeepSeek Lifeline with deepseek-v4-pro",
       "Check my DeepSeek Lifeline status",
-      "Turn off DeepSeek Lifeline"
+      "Show my DeepSeek Lifeline cost estimate"
     ],
     "brandColor": "#2563EB"
   }

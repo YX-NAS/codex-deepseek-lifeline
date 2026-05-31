@@ -31,9 +31,11 @@ rm -f \
   "$CODEX_HOME/deepseek.config.toml" \
   "$CODEX_HOME/start-deepseek-proxy.sh" \
   "$CODEX_HOME/codex-deepseek-exec.sh" \
+  "$CODEX_HOME/codex-deepseek-cost.sh" \
   "$CODEX_HOME/codex-deepseek-switch.sh" \
   "$CODEX_HOME/codex-deepseek-on.sh" \
   "$CODEX_HOME/codex-deepseek-off.sh" \
+  "$CODEX_HOME/deepseek-usage.jsonl" \
   "$CODEX_HOME/deepseek-proxy.log" \
   "$PLIST"
 
