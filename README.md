@@ -12,7 +12,7 @@ Codex DeepSeek Lifeline 是一个给 Codex CLI / Codex Desktop 准备的临时�
 
 - 在 `~/.codex/deepseek.config.toml` 添加一个 `deepseek` 备用 profile。
 - 在 `~/.codex/codex-deepseek-proxy.js` 安装本地代理。
-- 添加几个辅助脚本，用于启动代理、CLI 续命、桌面端临时切换和恢复。
+- 添加几个辅助脚本，用于一键切换、启动代理、CLI 续命、桌面端临时切换和恢复。
 - 从环境变量 `CODEX_DEEPSEEK_KEY` 读取 DeepSeek API Key。
 - 不会把你的 API Key 写入磁盘。
 
@@ -41,26 +41,33 @@ export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
 
 ### Codex Desktop 续命用法
 
-先启动代理：
+推荐使用一键切换。它会提示输入 API Key、写入 Codex Desktop 可读取的 macOS 环境变量、切换配置、重启本地代理：
 
 ```bash
-export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
-~/.codex/start-deepseek-proxy.sh
+~/.codex/codex-deepseek-switch.sh on deepseek-reasoner
 ```
 
-再把 Codex Desktop 临时切到 DeepSeek fallback 配置：
+如果不指定模型，默认使用 `deepseek-chat`：
 
 ```bash
-~/.codex/codex-deepseek-on.sh
+~/.codex/codex-deepseek-switch.sh on
 ```
 
 然后完全退出并重新打开 Codex Desktop。
 
+查看当前状态：
+
+```bash
+~/.codex/codex-deepseek-switch.sh status
+```
+
 恢复官方默认配置：
 
 ```bash
-~/.codex/codex-deepseek-off.sh
+~/.codex/codex-deepseek-switch.sh off
 ```
+
+兼容旧命令：`~/.codex/codex-deepseek-on.sh` 等同于 `switch.sh on`，`~/.codex/codex-deepseek-off.sh` 等同于 `switch.sh off`。
 
 ### 配置项
 
@@ -114,7 +121,7 @@ It runs a local proxy that accepts Codex-style Responses API requests and forwar
 
 - Adds a `deepseek` Codex profile at `~/.codex/deepseek.config.toml`.
 - Installs a local proxy at `~/.codex/codex-deepseek-proxy.js`.
-- Adds helper scripts to start the proxy, run `codex exec` with DeepSeek, and temporarily switch Codex Desktop.
+- Adds helper scripts to one-command switch, start the proxy, run `codex exec` with DeepSeek, and temporarily switch Codex Desktop.
 - Reads your DeepSeek API key from `CODEX_DEEPSEEK_KEY`.
 - Never writes your API key to disk.
 
@@ -143,26 +150,33 @@ Terminal 2:
 
 ## Desktop Fallback
 
-Start the proxy first:
+Use the one-command switch. It prompts for your API key, sets the macOS environment variables Codex Desktop can read, switches the config, and restarts the local proxy:
 
 ```bash
-export CODEX_DEEPSEEK_KEY="your-new-deepseek-key"
-~/.codex/start-deepseek-proxy.sh
+~/.codex/codex-deepseek-switch.sh on deepseek-reasoner
 ```
 
-Switch Codex Desktop to the fallback config:
+If you omit the model, it defaults to `deepseek-chat`:
 
 ```bash
-~/.codex/codex-deepseek-on.sh
+~/.codex/codex-deepseek-switch.sh on
 ```
 
 Then fully quit and reopen Codex Desktop.
 
+Check status:
+
+```bash
+~/.codex/codex-deepseek-switch.sh status
+```
+
 Restore the normal config:
 
 ```bash
-~/.codex/codex-deepseek-off.sh
+~/.codex/codex-deepseek-switch.sh off
 ```
+
+Legacy shortcuts still work: `~/.codex/codex-deepseek-on.sh` delegates to `switch.sh on`, and `~/.codex/codex-deepseek-off.sh` delegates to `switch.sh off`.
 
 ## Configuration
 
