@@ -9,7 +9,7 @@ install -m 700 "$REPO_DIR/bin/codex-deepseek-proxy.js" "$CODEX_HOME/codex-deepse
 
 cat > "$CODEX_HOME/deepseek.config.toml" <<'TOML'
 model_provider = "deepseek_proxy"
-model = "deepseek-chat"
+model = "deepseek-v4-flash"
 model_reasoning_effort = "low"
 
 [model_providers.deepseek_proxy]
@@ -34,7 +34,7 @@ if [ -z "${CODEX_DEEPSEEK_KEY:-}" ]; then
 fi
 
 export CODEX_PROXY_TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
-export CODEX_MODEL="${CODEX_MODEL:-deepseek-chat}"
+export CODEX_MODEL="${CODEX_MODEL:-deepseek-v4-flash}"
 exec node "$HOME/.codex/codex-deepseek-proxy.js"
 SH
 
@@ -76,7 +76,7 @@ fi
   cat <<'TOML'
 # BEGIN DEEPSEEK FALLBACK
 model_provider = "deepseek_proxy"
-model = "deepseek-chat"
+model = "deepseek-v4-flash"
 model_reasoning_effort = "low"
 
 [model_providers.deepseek_proxy]
@@ -141,7 +141,7 @@ LOG="$CODEX_HOME/deepseek-proxy.log"
 HOST="${CODEX_DEEPSEEK_PROXY_HOST:-127.0.0.1}"
 PORT="${CODEX_DEEPSEEK_PROXY_PORT:-4446}"
 TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
-MODEL="${2:-${CODEX_MODEL:-deepseek-chat}}"
+MODEL="${2:-${CODEX_MODEL:-deepseek-v4-flash}}"
 
 usage() {
   cat <<EOF
@@ -152,7 +152,7 @@ Usage:
 
 Examples:
   ~/.codex/codex-deepseek-switch.sh on
-  ~/.codex/codex-deepseek-switch.sh on deepseek-reasoner
+  ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
   ~/.codex/codex-deepseek-switch.sh off
 EOF
 }

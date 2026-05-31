@@ -44,10 +44,10 @@ export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
 推荐使用一键切换。它会提示输入 API Key、写入 Codex Desktop 可读取的 macOS 环境变量、切换配置、重启本地代理：
 
 ```bash
-~/.codex/codex-deepseek-switch.sh on deepseek-reasoner
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
 ```
 
-如果不指定模型，默认使用 `deepseek-chat`：
+如果不指定模型，默认使用 `deepseek-v4-flash`：
 
 ```bash
 ~/.codex/codex-deepseek-switch.sh on
@@ -65,14 +65,14 @@ export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
 
 ```text
 model_provider = "deepseek_proxy"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 base_url = "http://127.0.0.1:4446/v1"
 node ... 127.0.0.1:4446 (LISTEN)
-CODEX_MODEL=deepseek-reasoner
+CODEX_MODEL=deepseek-v4-pro
 CODEX_DEEPSEEK_KEY=(set)
 ```
 
-其中 `~/.codex/config.toml` 是 Codex Desktop 当前默认生效配置；`~/.codex/deepseek.config.toml` 是备用 profile，默认仍可能显示 `deepseek-chat`，这不影响全局切换后的实际模型。
+其中 `~/.codex/config.toml` 是 Codex Desktop 当前默认生效配置；`~/.codex/deepseek.config.toml` 是备用 profile，默认仍可能显示 `deepseek-v4-flash`，这不影响全局切换后的实际模型。
 
 恢复官方默认配置：
 
@@ -88,7 +88,7 @@ CODEX_DEEPSEEK_KEY=(set)
 
 ```bash
 CODEX_PROXY_TARGET=https://api.deepseek.com
-CODEX_MODEL=deepseek-chat
+CODEX_MODEL=deepseek-v4-flash
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
 CODEX_PROXY_MAX_CONCURRENT=1
@@ -166,10 +166,10 @@ Terminal 2:
 Use the one-command switch. It prompts for your API key, sets the macOS environment variables Codex Desktop can read, switches the config, and restarts the local proxy:
 
 ```bash
-~/.codex/codex-deepseek-switch.sh on deepseek-reasoner
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
 ```
 
-If you omit the model, it defaults to `deepseek-chat`:
+If you omit the model, it defaults to `deepseek-v4-flash`:
 
 ```bash
 ~/.codex/codex-deepseek-switch.sh on
@@ -187,14 +187,14 @@ A successful switch should show the important lines below:
 
 ```text
 model_provider = "deepseek_proxy"
-model = "deepseek-reasoner"
+model = "deepseek-v4-pro"
 base_url = "http://127.0.0.1:4446/v1"
 node ... 127.0.0.1:4446 (LISTEN)
-CODEX_MODEL=deepseek-reasoner
+CODEX_MODEL=deepseek-v4-pro
 CODEX_DEEPSEEK_KEY=(set)
 ```
 
-`~/.codex/config.toml` is the active Codex Desktop default config. `~/.codex/deepseek.config.toml` is only the fallback profile and may still show `deepseek-chat`; that does not override the global switch.
+`~/.codex/config.toml` is the active Codex Desktop default config. `~/.codex/deepseek.config.toml` is only the fallback profile and may still show `deepseek-v4-flash`; that does not override the global switch.
 
 Restore the normal config:
 
@@ -210,7 +210,7 @@ Defaults:
 
 ```bash
 CODEX_PROXY_TARGET=https://api.deepseek.com
-CODEX_MODEL=deepseek-chat
+CODEX_MODEL=deepseek-v4-flash
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
 CODEX_PROXY_MAX_CONCURRENT=1

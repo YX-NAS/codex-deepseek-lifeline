@@ -7,7 +7,7 @@ const https = require("node:https");
 const PORT = Number(process.env.CODEX_DEEPSEEK_PROXY_PORT || "4446");
 const HOST = process.env.CODEX_DEEPSEEK_PROXY_HOST || "127.0.0.1";
 const TARGET_BASE = (process.env.CODEX_PROXY_TARGET || "https://api.deepseek.com").replace(/\/+$/, "");
-const MODEL_NAME = process.env.CODEX_MODEL || "deepseek-chat";
+const MODEL_NAME = process.env.CODEX_MODEL || "deepseek-v4-flash";
 const API_KEY = process.env.CODEX_DEEPSEEK_KEY || "";
 const MAX_CONCURRENT = Number(process.env.CODEX_PROXY_MAX_CONCURRENT || "1");
 
