@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+- Added billing-currency-aware cost estimates with `CODEX_DEEPSEEK_BILLING_CURRENCY=auto|CNY|USD`.
+- Added official CNY price table alongside USD pricing.
+- Updated cost summaries to display the recorded billing currency instead of always showing USD.
+
 ## 1.2.0
 
 - Added token usage and cost-estimate logging to `~/.codex/deepseek-usage.jsonl`.

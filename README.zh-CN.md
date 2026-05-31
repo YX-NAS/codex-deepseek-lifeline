@@ -2,7 +2,7 @@
 
 Codex DeepSeek Lifeline 是一个给 Codex Desktop / Codex CLI 使用的本地 DeepSeek 代理。它会把 Codex 的 Responses API 请求转换成 DeepSeek 兼容的 Chat Completions 请求，用来在 Codex 官方额度不可用、或你想临时切到 DeepSeek 时继续工作。
 
-当前稳定版本：`1.2.0`
+当前稳定版本：`1.2.1`
 
 从 `1.1.0` 开始，本项目已封装为 Codex 插件，包含 `.codex-plugin/plugin.json` 和 `deepseek-lifeline` skill。
 
@@ -21,6 +21,7 @@ Codex DeepSeek Lifeline 是一个给 Codex Desktop / Codex CLI 使用的本地 D
 - 默认接口：`https://api.deepseek.com`
 - 本地代理：`http://127.0.0.1:4446/v1`
 - 默认 thinking：`disabled`
+- 默认结算单位：`auto`，中文/中国环境通常显示 `CNY`
 - API Key 来源：`CODEX_DEEPSEEK_KEY`
 
 V4 模型默认支持 thinking mode，但 Codex 工具调用需要稳定的上下文转换。这个代理目前默认关闭 thinking：
@@ -171,12 +172,28 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 
 代理会根据 DeepSeek 返回的 usage 写入 `~/.codex/deepseek-usage.jsonl`。当前内置官方 V4 价格如下，单位为每 1M tokens：
 
+人民币结算单位：
+
+| 模型 | Cache hit input | Cache miss input | Output |
+| --- | ---: | ---: | ---: |
+| `deepseek-v4-flash` | `¥0.02` | `¥1` | `¥2` |
+| `deepseek-v4-pro` | `¥0.025` | `¥3` | `¥6` |
+
+美元结算单位：
+
 | 模型 | Cache hit input | Cache miss input | Output |
 | --- | ---: | ---: | ---: |
 | `deepseek-v4-flash` | `$0.0028` | `$0.14` | `$0.28` |
 | `deepseek-v4-pro` | `$0.003625` | `$0.435` | `$0.87` |
 
 如果 DeepSeek 没有返回明确的 cache miss tokens，代理会用 `input_tokens - cache_hit_tokens` 推算 cache miss。这个功能只做估算，最终费用请以 DeepSeek 控制台账单为准。
+
+默认会用 `CODEX_DEEPSEEK_BILLING_CURRENCY=auto` 按本机语言环境选择结算单位。也可以手动指定：
+
+```bash
+export CODEX_DEEPSEEK_BILLING_CURRENCY=CNY
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
+```
 
 ## 关闭并恢复
 
@@ -233,6 +250,7 @@ tail -f ~/.codex/deepseek-proxy.log
 CODEX_PROXY_TARGET=https://api.deepseek.com
 CODEX_MODEL=deepseek-v4-flash
 CODEX_DEEPSEEK_THINKING=disabled
+CODEX_DEEPSEEK_BILLING_CURRENCY=auto
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
 CODEX_PROXY_MAX_CONCURRENT=1

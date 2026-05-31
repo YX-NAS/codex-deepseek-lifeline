@@ -24,6 +24,7 @@ Never ask the user to put their API key in source code, README files, Git commit
 - Default fast model: `deepseek-v4-flash`
 - Recommended high-capability model: `deepseek-v4-pro`
 - Default thinking mode: `CODEX_DEEPSEEK_THINKING=disabled`
+- Default billing currency: `CODEX_DEEPSEEK_BILLING_CURRENCY=auto`
 
 Thinking mode is disabled by default because the proxy does not preserve DeepSeek `reasoning_content` across Codex tool-call turns. Keeping thinking disabled makes Codex tool calls more stable.
 
@@ -100,12 +101,19 @@ Other views:
 ~/.codex/codex-deepseek-switch.sh cost tail
 ```
 
-The proxy writes one JSONL record per successful upstream response to `~/.codex/deepseek-usage.jsonl`. The estimate uses DeepSeek official V4 prices per 1M tokens:
+The proxy writes one JSONL record per successful upstream response to `~/.codex/deepseek-usage.jsonl`. The estimate uses DeepSeek official V4 prices per 1M tokens in the selected billing currency.
+
+CNY billing:
+
+- `deepseek-v4-flash`: cache-hit input `¥0.02`, cache-miss input `¥1`, output `¥2`.
+- `deepseek-v4-pro`: cache-hit input `¥0.025`, cache-miss input `¥3`, output `¥6`.
+
+USD billing:
 
 - `deepseek-v4-flash`: cache-hit input `$0.0028`, cache-miss input `$0.14`, output `$0.28`.
 - `deepseek-v4-pro`: cache-hit input `$0.003625`, cache-miss input `$0.435`, output `$0.87`.
 
-If DeepSeek does not return explicit cache-miss tokens, the proxy estimates cache miss as total input minus cache-hit input. Always describe this as an estimate and tell the user to verify final charges in the DeepSeek billing console.
+If DeepSeek does not return explicit cache-miss tokens, the proxy estimates cache miss as total input minus cache-hit input. `CODEX_DEEPSEEK_BILLING_CURRENCY=auto` chooses CNY for Chinese/China environments and USD otherwise. Always describe this as an estimate and tell the user to verify final charges in the DeepSeek billing console.
 
 ## Disable DeepSeek
 

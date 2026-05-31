@@ -15,6 +15,7 @@ if command -v launchctl >/dev/null 2>&1; then
   launchctl unsetenv CODEX_MODEL >/dev/null 2>&1 || true
   launchctl unsetenv CODEX_PROXY_TARGET >/dev/null 2>&1 || true
   launchctl unsetenv CODEX_DEEPSEEK_THINKING >/dev/null 2>&1 || true
+  launchctl unsetenv CODEX_DEEPSEEK_BILLING_CURRENCY >/dev/null 2>&1 || true
 fi
 
 if lsof -tiTCP:4446 -sTCP:LISTEN >/dev/null 2>&1; then

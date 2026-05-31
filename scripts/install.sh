@@ -49,6 +49,7 @@ fi
 export CODEX_PROXY_TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
 export CODEX_MODEL="${CODEX_MODEL:-deepseek-v4-flash}"
 export CODEX_DEEPSEEK_THINKING="${CODEX_DEEPSEEK_THINKING:-disabled}"
+export CODEX_DEEPSEEK_BILLING_CURRENCY="${CODEX_DEEPSEEK_BILLING_CURRENCY:-auto}"
 SH
 printf 'exec "%s" "$HOME/.codex/codex-deepseek-proxy.js"\n' "$NODE_BIN" >> "$CODEX_HOME/start-deepseek-proxy.sh"
 
@@ -112,23 +113,25 @@ function summarize(items) {
     input: 0,
     cacheHit: 0,
     cacheMiss: 0,
-    output: 0,
-    usd: 0
+    output: 0
   };
   const byModel = new Map();
+  const byCurrency = new Map();
 
   for (const item of items) {
     const tokens = item.tokens || {};
-    const usd = item.estimated_usd || {};
+    const currency = item.billing_currency || (item.estimated_usd ? "USD" : "UNKNOWN");
+    const amount = item.estimated_amount || item.estimated_usd || {};
     total.input += tokens.input || 0;
     total.cacheHit += tokens.cacheHit || 0;
     total.cacheMiss += tokens.cacheMiss || 0;
     total.output += tokens.output || 0;
-    total.usd += usd.total || 0;
+
+    byCurrency.set(currency, (byCurrency.get(currency) || 0) + (amount.total || 0));
 
     const model = item.model || "unknown";
     if (!byModel.has(model)) {
-      byModel.set(model, { requests: 0, input: 0, cacheHit: 0, cacheMiss: 0, output: 0, usd: 0 });
+      byModel.set(model, { requests: 0, input: 0, cacheHit: 0, cacheMiss: 0, output: 0, currencies: new Map() });
     }
     const row = byModel.get(model);
     row.requests += 1;
@@ -136,23 +139,28 @@ function summarize(items) {
     row.cacheHit += tokens.cacheHit || 0;
     row.cacheMiss += tokens.cacheMiss || 0;
     row.output += tokens.output || 0;
-    row.usd += usd.total || 0;
+    row.currencies.set(currency, (row.currencies.get(currency) || 0) + (amount.total || 0));
   }
 
-  return { total, byModel };
+  return { total, byModel, byCurrency };
+}
+
+function formatAmounts(amounts) {
+  if (!amounts.size) return "n/a";
+  return [...amounts.entries()].map(([currency, value]) => `${currency} ${value.toFixed(6)}`).join(", ");
 }
 
 function printSummary(title, items) {
-  const { total, byModel } = summarize(items);
+  const { total, byModel, byCurrency } = summarize(items);
   console.log(title);
   console.log(`requests=${total.requests}`);
   console.log(`input_tokens=${total.input} cache_hit=${total.cacheHit} cache_miss=${total.cacheMiss} output_tokens=${total.output}`);
-  console.log(`estimated_usd=$${total.usd.toFixed(6)}`);
+  console.log(`estimated_cost=${formatAmounts(byCurrency)}`);
   if (byModel.size) {
     console.log("");
     console.log("by_model:");
     for (const [model, row] of byModel) {
-      console.log(`  ${model}: requests=${row.requests} input=${row.input} cache_hit=${row.cacheHit} cache_miss=${row.cacheMiss} output=${row.output} estimated_usd=$${row.usd.toFixed(6)}`);
+      console.log(`  ${model}: requests=${row.requests} input=${row.input} cache_hit=${row.cacheHit} cache_miss=${row.cacheMiss} output=${row.output} estimated_cost=${formatAmounts(row.currencies)}`);
     }
   }
 }
@@ -174,7 +182,7 @@ if (mode === "today") {
 
 console.log("");
 console.log(`source=${file}`);
-console.log("note=estimate only; verify against the DeepSeek billing console for final charges");
+console.log("note=estimate only; displayed in the recorded billing currency; verify against the DeepSeek billing console for final charges");
 JS
 SH
 NODE_BIN_FOR_TEMPLATE="$NODE_BIN" perl -0pi -e 's#__NODE_BIN__#$ENV{NODE_BIN_FOR_TEMPLATE}#g' "$CODEX_HOME/codex-deepseek-cost.sh"
@@ -273,6 +281,7 @@ PORT="${CODEX_DEEPSEEK_PROXY_PORT:-4446}"
 TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
 MODEL="${2:-${CODEX_MODEL:-deepseek-v4-flash}}"
 THINKING="${CODEX_DEEPSEEK_THINKING:-disabled}"
+BILLING_CURRENCY="${CODEX_DEEPSEEK_BILLING_CURRENCY:-auto}"
 
 usage() {
   cat <<EOF
@@ -428,6 +437,7 @@ start_proxy() {
   export CODEX_DEEPSEEK_PROXY_HOST="$HOST"
   export CODEX_DEEPSEEK_PROXY_PORT="$PORT"
   export CODEX_DEEPSEEK_THINKING="$THINKING"
+  export CODEX_DEEPSEEK_BILLING_CURRENCY="$BILLING_CURRENCY"
   write_launch_agent
 
   if command -v launchctl >/dev/null 2>&1; then
@@ -461,6 +471,7 @@ status() {
   echo "Desktop env:"
   printf "CODEX_MODEL=%s\n" "$(get_launch_env CODEX_MODEL)"
   printf "CODEX_DEEPSEEK_THINKING=%s\n" "$(get_launch_env CODEX_DEEPSEEK_THINKING)"
+  printf "CODEX_DEEPSEEK_BILLING_CURRENCY=%s\n" "$(get_launch_env CODEX_DEEPSEEK_BILLING_CURRENCY)"
   if [ -n "$(get_launch_env CODEX_DEEPSEEK_KEY)" ]; then
     echo "CODEX_DEEPSEEK_KEY=(set)"
   else
@@ -477,11 +488,13 @@ case "${1:-}" in
     set_launch_env CODEX_MODEL "$MODEL"
     set_launch_env CODEX_PROXY_TARGET "$TARGET"
     set_launch_env CODEX_DEEPSEEK_THINKING "$THINKING"
+    set_launch_env CODEX_DEEPSEEK_BILLING_CURRENCY "$BILLING_CURRENCY"
     write_config
     start_proxy
     echo "DeepSeek fallback is ON."
     echo "Model: $MODEL"
     echo "Thinking: $THINKING"
+    echo "Billing currency: $BILLING_CURRENCY"
     echo "Proxy: http://$HOST:$PORT/v1"
     echo "Log: $LOG"
     echo "Fully restart Codex Desktop to use this config."
@@ -493,6 +506,7 @@ case "${1:-}" in
     unset_launch_env CODEX_MODEL
     unset_launch_env CODEX_PROXY_TARGET
     unset_launch_env CODEX_DEEPSEEK_THINKING
+    unset_launch_env CODEX_DEEPSEEK_BILLING_CURRENCY
     rm -f "$PLIST"
     echo "DeepSeek fallback is OFF."
     echo "Fully restart Codex Desktop to return to the normal setup."

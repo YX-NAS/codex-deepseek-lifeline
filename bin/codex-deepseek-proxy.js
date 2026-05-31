@@ -15,12 +15,21 @@ const THINKING_MODE = process.env.CODEX_DEEPSEEK_THINKING || "disabled";
 const API_KEY = process.env.CODEX_DEEPSEEK_KEY || "";
 const MAX_CONCURRENT = Number(process.env.CODEX_PROXY_MAX_CONCURRENT || "1");
 const USAGE_LOG = process.env.CODEX_DEEPSEEK_USAGE_LOG || path.join(os.homedir(), ".codex", "deepseek-usage.jsonl");
+const BILLING_CURRENCY = resolveBillingCurrency(process.env.CODEX_DEEPSEEK_BILLING_CURRENCY || "auto");
 
 const PRICES_PER_1M = {
-  "deepseek-v4-flash": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
-  "deepseek-v4-pro": { inputCacheHit: 0.003625, inputCacheMiss: 0.435, output: 0.87 },
-  "deepseek-chat": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
-  "deepseek-reasoner": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 }
+  USD: {
+    "deepseek-v4-flash": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
+    "deepseek-v4-pro": { inputCacheHit: 0.003625, inputCacheMiss: 0.435, output: 0.87 },
+    "deepseek-chat": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
+    "deepseek-reasoner": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 }
+  },
+  CNY: {
+    "deepseek-v4-flash": { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 },
+    "deepseek-v4-pro": { inputCacheHit: 0.025, inputCacheMiss: 3, output: 6 },
+    "deepseek-chat": { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 },
+    "deepseek-reasoner": { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 }
+  }
 };
 
 if (!API_KEY) {
@@ -31,6 +40,25 @@ if (!API_KEY) {
 
 let activeRequests = 0;
 const pendingQueue = [];
+
+function resolveBillingCurrency(value) {
+  const normalized = String(value || "auto").trim().toUpperCase();
+  if (normalized === "CNY" || normalized === "RMB") return "CNY";
+  if (normalized === "USD") return "USD";
+
+  const localeParts = [
+    process.env.LC_ALL,
+    process.env.LC_MONETARY,
+    process.env.LANG,
+    Intl.DateTimeFormat().resolvedOptions().locale,
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  if (localeParts.includes("zh") || localeParts.includes("cn") || localeParts.includes("asia/shanghai")) {
+    return "CNY";
+  }
+  return "USD";
+}
 
 function normalizeContent(content) {
   if (typeof content === "string") return content;
@@ -176,22 +204,24 @@ function usageTokens(usage) {
 }
 
 function estimateCost(model, usage) {
-  const prices = PRICES_PER_1M[model] || PRICES_PER_1M[MODEL_NAME];
+  const priceTable = PRICES_PER_1M[BILLING_CURRENCY] || PRICES_PER_1M.USD;
+  const prices = priceTable[model] || priceTable[MODEL_NAME];
   const tokens = usageTokens(usage);
-  if (!prices || !usage) return { tokens, usd: null, prices: null };
+  if (!prices || !usage) return { tokens, amount: null, prices: null, currency: BILLING_CURRENCY };
 
-  const inputCacheHitUsd = tokens.cacheHit * prices.inputCacheHit / 1_000_000;
-  const inputCacheMissUsd = tokens.cacheMiss * prices.inputCacheMiss / 1_000_000;
-  const outputUsd = tokens.output * prices.output / 1_000_000;
+  const inputCacheHitAmount = tokens.cacheHit * prices.inputCacheHit / 1_000_000;
+  const inputCacheMissAmount = tokens.cacheMiss * prices.inputCacheMiss / 1_000_000;
+  const outputAmount = tokens.output * prices.output / 1_000_000;
   return {
     tokens,
-    usd: {
-      input_cache_hit: inputCacheHitUsd,
-      input_cache_miss: inputCacheMissUsd,
-      output: outputUsd,
-      total: inputCacheHitUsd + inputCacheMissUsd + outputUsd
+    amount: {
+      input_cache_hit: inputCacheHitAmount,
+      input_cache_miss: inputCacheMissAmount,
+      output: outputAmount,
+      total: inputCacheHitAmount + inputCacheMissAmount + outputAmount
     },
-    prices
+    prices,
+    currency: BILLING_CURRENCY
   };
 }
 
@@ -204,16 +234,18 @@ function appendUsageRecord(model, usage, reqUrl) {
     route: reqUrl,
     thinking: THINKING_MODE,
     tokens: estimate.tokens,
-    estimated_usd: estimate.usd,
+    billing_currency: estimate.currency,
+    estimated_amount: estimate.amount,
+    estimated_usd: estimate.currency === "USD" ? estimate.amount : null,
     prices_per_1m: estimate.prices,
-    pricing_note: "Estimate only. Prices are based on DeepSeek official V4 pricing; if cache-miss detail is absent, uncached input is inferred as input minus cache-hit tokens."
+    pricing_note: "Estimate only. Prices are based on DeepSeek official V4 pricing in the selected billing currency; if cache-miss detail is absent, uncached input is inferred as input minus cache-hit tokens."
   };
 
   try {
     fs.mkdirSync(path.dirname(USAGE_LOG), { recursive: true });
     fs.appendFileSync(USAGE_LOG, `${JSON.stringify(record)}\n`);
-    if (estimate.usd) {
-      console.log(`cost estimate [${model}] input=${estimate.tokens.input} output=${estimate.tokens.output} total=$${estimate.usd.total.toFixed(6)}`);
+    if (estimate.amount) {
+      console.log(`cost estimate [${model}] input=${estimate.tokens.input} output=${estimate.tokens.output} total=${estimate.currency} ${estimate.amount.total.toFixed(6)}`);
     }
   } catch (error) {
     console.error(`Failed to write usage log: ${error.message}`);
@@ -465,6 +497,7 @@ const server = http.createServer(async (req, res) => {
       model: MODEL_NAME,
       thinking: THINKING_MODE,
       usage_log: USAGE_LOG,
+      billing_currency: BILLING_CURRENCY,
       queue: pendingQueue.length,
       active: activeRequests
     }));
@@ -490,4 +523,5 @@ server.listen(PORT, HOST, () => {
   console.log(`codex-deepseek-lifeline proxy listening on http://${HOST}:${PORT}`);
   console.log(`target=${TARGET_BASE} model=${MODEL_NAME} thinking=${THINKING_MODE}`);
   console.log(`usage_log=${USAGE_LOG}`);
+  console.log(`billing_currency=${BILLING_CURRENCY}`);
 });

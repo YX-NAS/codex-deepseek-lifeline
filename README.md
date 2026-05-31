@@ -4,7 +4,7 @@ Local DeepSeek proxy for Codex Desktop / Codex CLI.
 
 一个给 Codex Desktop / Codex CLI 使用的本地 DeepSeek 代理。
 
-Current stable version / 当前稳定版本：`1.2.0`
+Current stable version / 当前稳定版本：`1.2.1`
 
 This repository is also packaged as a Codex plugin.
 
@@ -52,6 +52,7 @@ After turning it on, fully quit and reopen Codex Desktop.
 - Local proxy / 本地代理：`http://127.0.0.1:4446/v1`
 - Thinking mode / Thinking 模式：`disabled`
 - Cost log / 费用日志：`~/.codex/deepseek-usage.jsonl`
+- Billing currency / 结算单位：`auto` (`CNY` for Chinese/China environments, otherwise `USD`)
 
 See the full documentation:
 

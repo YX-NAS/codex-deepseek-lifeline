@@ -2,7 +2,7 @@
 
 Codex DeepSeek Lifeline is a local DeepSeek proxy for Codex Desktop and Codex CLI. It translates Codex-style Responses API requests into DeepSeek-compatible Chat Completions requests, so you can keep working when your official Codex quota is unavailable or when you want to temporarily use DeepSeek.
 
-Current stable version: `1.2.0`
+Current stable version: `1.2.1`
 
 Starting with `1.1.0`, this project is packaged as a Codex plugin with `.codex-plugin/plugin.json` and the `deepseek-lifeline` skill.
 
@@ -21,6 +21,7 @@ It handles config switching, API key environment setup, local proxy restart, and
 - Default endpoint: `https://api.deepseek.com`
 - Local proxy: `http://127.0.0.1:4446/v1`
 - Default thinking mode: `disabled`
+- Default billing currency: `auto`, which uses `CNY` for Chinese/China environments and `USD` otherwise
 - API key env var: `CODEX_DEEPSEEK_KEY`
 
 DeepSeek V4 models support thinking mode by default, but Codex tool calls need stable context conversion. This proxy disables thinking by default:
@@ -171,12 +172,28 @@ Show the last 10 raw records:
 
 The proxy records DeepSeek usage results in `~/.codex/deepseek-usage.jsonl`. Built-in official V4 prices, per 1M tokens:
 
+CNY billing:
+
+| Model | Cache-hit input | Cache-miss input | Output |
+| --- | ---: | ---: | ---: |
+| `deepseek-v4-flash` | `¥0.02` | `¥1` | `¥2` |
+| `deepseek-v4-pro` | `¥0.025` | `¥3` | `¥6` |
+
+USD billing:
+
 | Model | Cache-hit input | Cache-miss input | Output |
 | --- | ---: | ---: | ---: |
 | `deepseek-v4-flash` | `$0.0028` | `$0.14` | `$0.28` |
 | `deepseek-v4-pro` | `$0.003625` | `$0.435` | `$0.87` |
 
 If DeepSeek does not return explicit cache-miss tokens, the proxy estimates cache miss as `input_tokens - cache_hit_tokens`. This feature is only an estimate; verify final charges in the DeepSeek billing console.
+
+By default, `CODEX_DEEPSEEK_BILLING_CURRENCY=auto` selects the display currency from the local environment. You can force one:
+
+```bash
+export CODEX_DEEPSEEK_BILLING_CURRENCY=CNY
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
+```
 
 ## Turn Off
 
@@ -233,6 +250,7 @@ Defaults:
 CODEX_PROXY_TARGET=https://api.deepseek.com
 CODEX_MODEL=deepseek-v4-flash
 CODEX_DEEPSEEK_THINKING=disabled
+CODEX_DEEPSEEK_BILLING_CURRENCY=auto
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
 CODEX_PROXY_MAX_CONCURRENT=1
