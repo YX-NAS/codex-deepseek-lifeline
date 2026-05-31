@@ -24,6 +24,13 @@ cd codex-deepseek-lifeline
 bash scripts/install.sh
 ```
 
+### 最新版本说明
+
+- 默认模型已更新为 `deepseek-v4-flash`。
+- 推荐的高能力模型已更新为 `deepseek-v4-pro`。
+- 为了兼容 Codex 工具调用，代理默认设置 `CODEX_DEEPSEEK_THINKING=disabled`。
+- 旧模型名 `deepseek-chat` / `deepseek-reasoner` 不再作为默认示例使用。
+
 ### CLI 续命用法
 
 打开第一个终端，启动本地代理：
@@ -159,6 +166,13 @@ git clone https://github.com/YX-NAS/codex-deepseek-lifeline.git
 cd codex-deepseek-lifeline
 bash scripts/install.sh
 ```
+
+## Latest Version Notes
+
+- The default model is now `deepseek-v4-flash`.
+- The recommended higher-capability model is now `deepseek-v4-pro`.
+- For more stable Codex tool calling, the proxy defaults to `CODEX_DEEPSEEK_THINKING=disabled`.
+- Legacy model names `deepseek-chat` / `deepseek-reasoner` are no longer used in the default examples.
 
 ## CLI Fallback
 
