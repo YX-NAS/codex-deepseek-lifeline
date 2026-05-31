@@ -26,14 +26,29 @@ function normalizeContent(content) {
   return content
     .filter((part) => part.type !== "input_image")
     .map((part) => {
-      if (part.type === "input_text") return { type: "text", text: part.text || "" };
-      return part;
+      if (part.type === "input_text" || part.type === "output_text") {
+        return { type: "text", text: part.text || "" };
+      }
+      if (typeof part.text === "string") return { type: "text", text: part.text };
+      return { type: "text", text: JSON.stringify(part) };
     });
+}
+
+function contentToText(content) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return JSON.stringify(content ?? "");
+  return content.map((part) => part?.text || JSON.stringify(part)).join("\n");
+}
+
+function outputToText(output) {
+  if (typeof output === "string") return output;
+  return JSON.stringify(output ?? "");
 }
 
 function normalizeRole(role) {
   if (role === "developer") return "system";
-  if (role === "assistant" || role === "system" || role === "user" || role === "tool") return role;
+  if (role === "assistant" || role === "system" || role === "user") return role;
+  if (role === "tool") return "user";
   return "user";
 }
 
@@ -59,7 +74,8 @@ function responsesToChatCompletions(body) {
     messages.push({ role: "system", content: body.instructions });
   }
 
-  for (const item of Array.isArray(body.input) ? body.input : []) {
+  const input = Array.isArray(body.input) ? body.input : [body.input].filter(Boolean);
+  for (const item of input) {
     if (typeof item === "string") {
       messages.push({ role: "user", content: item });
       continue;
@@ -68,17 +84,26 @@ function responsesToChatCompletions(body) {
 
     if (item.type === "function_call_output") {
       messages.push({
-        role: "tool",
-        tool_call_id: item.call_id,
-        content: typeof item.output === "string" ? item.output : JSON.stringify(item.output ?? "")
+        role: "user",
+        content: `Tool output${item.call_id ? ` (${item.call_id})` : ""}:\n${outputToText(item.output)}`
+      });
+      continue;
+    }
+
+    if (item.type === "function_call") {
+      messages.push({
+        role: "assistant",
+        content: `Tool call${item.name ? ` ${item.name}` : ""}${item.call_id ? ` (${item.call_id})` : ""}:\n${item.arguments || ""}`
       });
       continue;
     }
 
     if (item.role) {
+      const role = normalizeRole(item.role);
+      const content = normalizeContent(item.content);
       messages.push({
-        role: normalizeRole(item.role),
-        content: normalizeContent(item.content)
+        role,
+        content: item.role === "tool" ? `Tool output:\n${contentToText(content)}` : content
       });
     }
   }
@@ -98,7 +123,18 @@ function responsesToChatCompletions(body) {
     const tools = body.tools.map(normalizeTool).filter(Boolean);
     if (tools.length) result.tools = tools;
   }
-  if (body.tool_choice) result.tool_choice = body.tool_choice;
+  if (body.tool_choice) {
+    if (body.tool_choice === "auto" || body.tool_choice === "none" || body.tool_choice === "required") {
+      result.tool_choice = body.tool_choice;
+    } else if (typeof body.tool_choice === "object" && body.tool_choice.name) {
+      result.tool_choice = {
+        type: "function",
+        function: { name: body.tool_choice.name }
+      };
+    } else if (typeof body.tool_choice === "object" && body.tool_choice.function?.name) {
+      result.tool_choice = body.tool_choice;
+    }
+  }
 
   return result;
 }
