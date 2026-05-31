@@ -2,6 +2,13 @@
 set -euo pipefail
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+PLIST="$HOME/Library/LaunchAgents/com.codex.deepseek-lifeline.plist"
+LABEL="com.codex.deepseek-lifeline"
+
+if command -v launchctl >/dev/null 2>&1; then
+  launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
+  launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
+fi
 
 if command -v launchctl >/dev/null 2>&1; then
   launchctl unsetenv CODEX_DEEPSEEK_KEY >/dev/null 2>&1 || true
@@ -27,6 +34,7 @@ rm -f \
   "$CODEX_HOME/codex-deepseek-switch.sh" \
   "$CODEX_HOME/codex-deepseek-on.sh" \
   "$CODEX_HOME/codex-deepseek-off.sh" \
-  "$CODEX_HOME/deepseek-proxy.log"
+  "$CODEX_HOME/deepseek-proxy.log" \
+  "$PLIST"
 
 echo "Removed Codex DeepSeek Lifeline files from $CODEX_HOME"

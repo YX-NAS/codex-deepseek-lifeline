@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- Starts the proxy through a macOS LaunchAgent so plugin-triggered enables keep running reliably.
+- Keeps API keys out of the LaunchAgent plist by continuing to use the macOS launch environment.
+- Cleans up the LaunchAgent during disable and uninstall flows.
+
 ## 1.1.0
 
 - Packaged the project as a Codex plugin with `.codex-plugin/plugin.json`.

@@ -2,7 +2,7 @@
 
 Codex DeepSeek Lifeline is a local DeepSeek proxy for Codex Desktop and Codex CLI. It translates Codex-style Responses API requests into DeepSeek-compatible Chat Completions requests, so you can keep working when your official Codex quota is unavailable or when you want to temporarily use DeepSeek.
 
-Current stable version: `1.1.0`
+Current stable version: `1.1.1`
 
 Starting with `1.1.0`, this project is packaged as a Codex plugin with `.codex-plugin/plugin.json` and the `deepseek-lifeline` skill.
 
@@ -106,6 +106,7 @@ The switch command automatically:
 - Updates `~/.codex/config.toml` to point Codex at the local DeepSeek proxy.
 - Stops any old proxy process on port `4446`.
 - Starts a new local proxy in the background.
+- Uses a macOS LaunchAgent to keep the proxy process stable.
 - Writes proxy logs to `~/.codex/deepseek-proxy.log`.
 
 After turning it on, fully quit and reopen Codex Desktop. Starting a new chat alone may not reload the config.

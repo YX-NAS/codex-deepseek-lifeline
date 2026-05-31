@@ -2,7 +2,7 @@
 
 Codex DeepSeek Lifeline 是一个给 Codex Desktop / Codex CLI 使用的本地 DeepSeek 代理。它会把 Codex 的 Responses API 请求转换成 DeepSeek 兼容的 Chat Completions 请求，用来在 Codex 官方额度不可用、或你想临时切到 DeepSeek 时继续工作。
 
-当前稳定版本：`1.1.0`
+当前稳定版本：`1.1.1`
 
 从 `1.1.0` 开始，本项目已封装为 Codex 插件，包含 `.codex-plugin/plugin.json` 和 `deepseek-lifeline` skill。
 
@@ -106,6 +106,7 @@ DeepSeek API Key:
 - 修改 `~/.codex/config.toml`，把 Codex 默认模型提供方切到本地 DeepSeek 代理。
 - 停掉旧的 `4446` 代理进程。
 - 在后台启动新的本地代理。
+- 使用 macOS LaunchAgent 保持代理进程稳定运行。
 - 把代理日志写到 `~/.codex/deepseek-proxy.log`。
 
 开启后请完全退出并重新打开 Codex Desktop。只开新对话不一定会重新读取配置。

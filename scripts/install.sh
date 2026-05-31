@@ -3,6 +3,19 @@ set -euo pipefail
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NODE_BIN="${NODE_BIN:-$(command -v node || true)}"
+if [ -z "$NODE_BIN" ]; then
+  for candidate in /opt/homebrew/bin/node /usr/local/bin/node /usr/bin/node; do
+    if [ -x "$candidate" ]; then
+      NODE_BIN="$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "$NODE_BIN" ]; then
+  echo "node is required but was not found."
+  exit 1
+fi
 mkdir -p "$CODEX_HOME"
 
 install -m 700 "$REPO_DIR/bin/codex-deepseek-proxy.js" "$CODEX_HOME/codex-deepseek-proxy.js"
@@ -36,8 +49,8 @@ fi
 export CODEX_PROXY_TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
 export CODEX_MODEL="${CODEX_MODEL:-deepseek-v4-flash}"
 export CODEX_DEEPSEEK_THINKING="${CODEX_DEEPSEEK_THINKING:-disabled}"
-exec node "$HOME/.codex/codex-deepseek-proxy.js"
 SH
+printf 'exec "%s" "$HOME/.codex/codex-deepseek-proxy.js"\n' "$NODE_BIN" >> "$CODEX_HOME/start-deepseek-proxy.sh"
 
 cat > "$CODEX_HOME/codex-deepseek-exec.sh" <<'SH'
 #!/usr/bin/env bash
@@ -139,6 +152,8 @@ CONFIG="$CODEX_HOME/config.toml"
 BACKUP="$CODEX_HOME/config.toml.before-deepseek"
 TMP="$CODEX_HOME/config.toml.deepseek-tmp"
 LOG="$CODEX_HOME/deepseek-proxy.log"
+PLIST="$HOME/Library/LaunchAgents/com.codex.deepseek-lifeline.plist"
+LABEL="com.codex.deepseek-lifeline"
 HOST="${CODEX_DEEPSEEK_PROXY_HOST:-127.0.0.1}"
 PORT="${CODEX_DEEPSEEK_PROXY_PORT:-4446}"
 TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
@@ -182,12 +197,44 @@ listener_pids() {
 }
 
 stop_proxy() {
+  if command -v launchctl >/dev/null 2>&1; then
+    launchctl bootout "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
+  fi
+
   local pids
   pids="$(listener_pids)"
   if [ -n "$pids" ]; then
     kill $pids 2>/dev/null || true
     sleep 0.5
   fi
+}
+
+write_launch_agent() {
+  mkdir -p "$(dirname "$PLIST")"
+  cat > "$PLIST" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$CODEX_HOME/start-deepseek-proxy.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>$LOG</string>
+  <key>StandardErrorPath</key>
+  <string>$LOG</string>
+  <key>WorkingDirectory</key>
+  <string>$HOME</string>
+</dict>
+</plist>
+PLIST
 }
 
 write_config() {
@@ -264,7 +311,16 @@ start_proxy() {
   export CODEX_PROXY_TARGET="$TARGET"
   export CODEX_DEEPSEEK_PROXY_HOST="$HOST"
   export CODEX_DEEPSEEK_PROXY_PORT="$PORT"
-  nohup "$CODEX_HOME/start-deepseek-proxy.sh" > "$LOG" 2>&1 &
+  export CODEX_DEEPSEEK_THINKING="$THINKING"
+  write_launch_agent
+
+  if command -v launchctl >/dev/null 2>&1; then
+    launchctl bootstrap "gui/$(id -u)" "$PLIST" >/dev/null 2>&1 || true
+    launchctl kickstart -k "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
+  else
+    nohup "$CODEX_HOME/start-deepseek-proxy.sh" > "$LOG" 2>&1 &
+  fi
+
   sleep 0.8
 
   if [ -n "$(listener_pids)" ]; then
@@ -282,6 +338,9 @@ status() {
   echo
   echo "Proxy:"
   lsof -nP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || echo "No proxy listening on $HOST:$PORT"
+  if command -v launchctl >/dev/null 2>&1; then
+    launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && echo "LaunchAgent=$LABEL (loaded)" || true
+  fi
   echo
   echo "Desktop env:"
   printf "CODEX_MODEL=%s\n" "$(get_launch_env CODEX_MODEL)"
@@ -318,6 +377,7 @@ case "${1:-}" in
     unset_launch_env CODEX_MODEL
     unset_launch_env CODEX_PROXY_TARGET
     unset_launch_env CODEX_DEEPSEEK_THINKING
+    rm -f "$PLIST"
     echo "DeepSeek fallback is OFF."
     echo "Fully restart Codex Desktop to return to the normal setup."
     ;;
