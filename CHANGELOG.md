@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- Tightened the plugin skill instructions for disabling DeepSeek Lifeline.
+- Documented the fallback when Codex displays tool calls as plain text instead of executing them.
+
 ## 1.1.1
 
 - Starts the proxy through a macOS LaunchAgent so plugin-triggered enables keep running reliably.

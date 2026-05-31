@@ -91,11 +91,28 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 
 This stops the local proxy, restores the previous `~/.codex/config.toml` backup when available, and clears related macOS launch environment variables. After disabling, tell the user to fully quit and reopen Codex Desktop.
 
+Always use `~/.codex/codex-deepseek-switch.sh off` for disable requests. Do not use the legacy `codex-deepseek-off.sh` helper directly, and do not manually kill proxy PIDs unless the switch command fails and status still shows a listener on port `4446`.
+
+After running the off command, verify with:
+
+```bash
+~/.codex/codex-deepseek-switch.sh status
+```
+
+The expected disabled state is:
+
+```text
+No proxy listening on 127.0.0.1:4446
+CODEX_MODEL=
+CODEX_DEEPSEEK_KEY=(not set)
+```
+
 ## Troubleshooting
 
 - `Missing environment variable: CODEX_DEEPSEEK_KEY`: run `~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro` so the script can prompt for the key and write it to the macOS launch environment.
 - `EADDRINUSE 127.0.0.1:4446`: run the switch command again; it stops the old proxy before starting a new one.
 - Tool calls appear as plain text: confirm `CODEX_DEEPSEEK_THINKING=disabled` in `status`, then restart Codex Desktop.
+- Disable command appears as `Tool call exec_command ...` text instead of executing: tell the user this means the current model response did not actually execute tools, then run `~/.codex/codex-deepseek-switch.sh off` from a tool-capable session or ask the user to paste that command into Terminal.
 - `rg: command not found`: use `grep -nE` for shell checks on machines without ripgrep.
 
 ## Safety
