@@ -1,5 +1,111 @@
 # Codex DeepSeek Lifeline
 
+> 中文说明在前，English follows below.
+
+## 中文说明
+
+Codex DeepSeek Lifeline 是一个给 Codex CLI / Codex Desktop 准备的临时续命方案。当 OpenAI / Codex 额度暂时不可用时，它可以把 Codex 的模型请求转发到 DeepSeek 或其他 OpenAI-compatible Chat Completions 服务。
+
+它不是官方 DeepSeek 集成，也不是要完全替代 Codex 官方模型。更准确地说，它是一个本机代理：接收 Codex 风格的 Responses API 请求，再转换成 DeepSeek 支持的 Chat Completions 请求。适合普通问答、代码解释、轻量代码修改；不建议用于复杂长任务、图片输入、web search 或高可靠自动化。
+
+### 它会做什么
+
+- 在 `~/.codex/deepseek.config.toml` 添加一个 `deepseek` 备用 profile。
+- 在 `~/.codex/codex-deepseek-proxy.js` 安装本地代理。
+- 添加几个辅助脚本，用于启动代理、CLI 续命、桌面端临时切换和恢复。
+- 从环境变量 `CODEX_DEEPSEEK_KEY` 读取 DeepSeek API Key。
+- 不会把你的 API Key 写入磁盘。
+
+### 安装
+
+```bash
+git clone https://github.com/YX-NAS/codex-deepseek-lifeline.git
+cd codex-deepseek-lifeline
+bash scripts/install.sh
+```
+
+### CLI 续命用法
+
+打开第一个终端，启动本地代理：
+
+```bash
+export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
+~/.codex/start-deepseek-proxy.sh
+```
+
+打开第二个终端，通过 DeepSeek profile 运行 Codex：
+
+```bash
+~/.codex/codex-deepseek-exec.sh exec "解释一下这个项目"
+```
+
+### Codex Desktop 续命用法
+
+先启动代理：
+
+```bash
+export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
+~/.codex/start-deepseek-proxy.sh
+```
+
+再把 Codex Desktop 临时切到 DeepSeek fallback 配置：
+
+```bash
+~/.codex/codex-deepseek-on.sh
+```
+
+然后完全退出并重新打开 Codex Desktop。
+
+恢复官方默认配置：
+
+```bash
+~/.codex/codex-deepseek-off.sh
+```
+
+### 配置项
+
+默认值：
+
+```bash
+CODEX_PROXY_TARGET=https://api.deepseek.com
+CODEX_MODEL=deepseek-chat
+CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
+CODEX_DEEPSEEK_PROXY_PORT=4446
+CODEX_PROXY_MAX_CONCURRENT=1
+```
+
+如果你使用其他 OpenAI-compatible 服务，可以这样改：
+
+```bash
+export CODEX_PROXY_TARGET="https://your-compatible-endpoint.example"
+export CODEX_MODEL="your-model-name"
+```
+
+### 限制
+
+- 工具调用是尽力兼容，复杂 schema 可能失败。
+- 图片输入会被丢弃，因为这里使用的 DeepSeek chat 模型不支持 Codex 的图片 payload。
+- Web search、长时间 agentic 任务、多工具复杂工作流，稳定性通常不如 Codex 官方模型。
+- Codex Desktop 的某些能力可能仍然依赖 OpenAI / ChatGPT 账户服务，不能只靠代理完全替代。
+
+### 安全建议
+
+建议使用新的、权限尽量小的 API Key，并且只通过环境变量传入。不要把 Key 写进 README、脚本、配置文件、Git 提交或聊天记录里。测试结束后可以考虑轮换或删除临时 Key。
+
+本地代理默认只监听 `127.0.0.1`。除非你非常清楚风险，否则不要把监听地址改成 `0.0.0.0`。
+
+### 卸载
+
+```bash
+bash scripts/uninstall.sh
+```
+
+如果桌面端曾经切到 DeepSeek fallback，卸载脚本会尽量恢复之前备份的 `~/.codex/config.toml`。
+
+---
+
+## English
+
 Emergency fallback for Codex CLI/Desktop when your OpenAI/Codex quota is temporarily unavailable.
 
 It runs a local proxy that accepts Codex-style Responses API requests and forwards them to a DeepSeek-compatible Chat Completions endpoint. The goal is not to fully replace Codex's official models. It is a temporary "keep working" mode for ordinary chat and lightweight coding tasks.
