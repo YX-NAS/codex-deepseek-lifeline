@@ -1,0 +1,38 @@
+{
+  "name": "codex-deepseek-lifeline",
+  "version": "1.1.0",
+  "description": "One-command DeepSeek fallback for Codex Desktop and Codex CLI through a local proxy.",
+  "author": {
+    "name": "YX-NAS",
+    "url": "https://github.com/YX-NAS"
+  },
+  "homepage": "https://github.com/YX-NAS/codex-deepseek-lifeline",
+  "repository": "https://github.com/YX-NAS/codex-deepseek-lifeline",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "deepseek",
+    "proxy",
+    "fallback",
+    "responses-api"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex DeepSeek Lifeline",
+    "shortDescription": "Switch Codex to a local DeepSeek proxy.",
+    "longDescription": "Install, enable, disable, and inspect a local DeepSeek proxy for Codex Desktop and Codex CLI using a one-command workflow.",
+    "developerName": "YX-NAS",
+    "category": "Productivity",
+    "capabilities": [
+      "Automation",
+      "Developer Tools"
+    ],
+    "websiteURL": "https://github.com/YX-NAS/codex-deepseek-lifeline",
+    "defaultPrompt": [
+      "Enable DeepSeek Lifeline with deepseek-v4-pro",
+      "Check my DeepSeek Lifeline status",
+      "Turn off DeepSeek Lifeline"
+    ],
+    "brandColor": "#2563EB"
+  }
+}

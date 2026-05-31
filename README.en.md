@@ -2,7 +2,9 @@
 
 Codex DeepSeek Lifeline is a local DeepSeek proxy for Codex Desktop and Codex CLI. It translates Codex-style Responses API requests into DeepSeek-compatible Chat Completions requests, so you can keep working when your official Codex quota is unavailable or when you want to temporarily use DeepSeek.
 
-Current stable version: `1.0.0`
+Current stable version: `1.1.0`
+
+Starting with `1.1.0`, this project is packaged as a Codex plugin with `.codex-plugin/plugin.json` and the `deepseek-lifeline` skill.
 
 The current main entry point is the one-command switch:
 
@@ -49,6 +51,29 @@ The installer writes these files to `~/.codex`:
 ```
 
 The installer does not store your API key.
+
+## Use As A Codex Plugin
+
+This repository includes a plugin manifest:
+
+```text
+.codex-plugin/plugin.json
+skills/deepseek-lifeline/SKILL.md
+```
+
+After installing it as a Codex plugin, you can ask Codex:
+
+```text
+Enable DeepSeek Lifeline with deepseek-v4-pro
+```
+
+Or:
+
+```text
+Check DeepSeek Lifeline status
+```
+
+The plugin skill guides Codex through installation, enabling, disabling, status checks, and troubleshooting. The actual one-command switch remains `~/.codex/codex-deepseek-switch.sh`.
 
 ## Turn On
 
