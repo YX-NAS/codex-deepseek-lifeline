@@ -1,6 +1,6 @@
 {
   "name": "codex-deepseek-lifeline",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Emergency DeepSeek fallback for Codex CLI/Desktop through a local Responses API proxy.",
   "license": "MIT",
   "type": "commonjs",

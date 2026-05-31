@@ -4,6 +4,8 @@ Local DeepSeek proxy for Codex Desktop / Codex CLI.
 
 一个给 Codex Desktop / Codex CLI 使用的本地 DeepSeek 代理。
 
+Current stable version / 当前稳定版本：`1.0.0`
+
 ## Languages
 
 - [简体中文](README.zh-CN.md)

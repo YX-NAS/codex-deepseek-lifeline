@@ -2,6 +2,8 @@
 
 Codex DeepSeek Lifeline is a local DeepSeek proxy for Codex Desktop and Codex CLI. It translates Codex-style Responses API requests into DeepSeek-compatible Chat Completions requests, so you can keep working when your official Codex quota is unavailable or when you want to temporarily use DeepSeek.
 
+Current stable version: `1.0.0`
+
 The current main entry point is the one-command switch:
 
 ```bash
