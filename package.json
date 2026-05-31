@@ -1,0 +1,22 @@
+{
+  "name": "codex-deepseek-lifeline",
+  "version": "0.1.0",
+  "description": "Emergency DeepSeek fallback for Codex CLI/Desktop through a local Responses API proxy.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "codex-deepseek-proxy": "bin/codex-deepseek-proxy.js"
+  },
+  "scripts": {
+    "check": "node --check bin/codex-deepseek-proxy.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "codex",
+    "deepseek",
+    "proxy",
+    "responses-api"
+  ]
+}
