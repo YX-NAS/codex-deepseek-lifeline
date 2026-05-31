@@ -61,6 +61,19 @@ export CODEX_DEEPSEEK_KEY="你的新 DeepSeek Key"
 ~/.codex/codex-deepseek-switch.sh status
 ```
 
+验证成功时应重点看到：
+
+```text
+model_provider = "deepseek_proxy"
+model = "deepseek-reasoner"
+base_url = "http://127.0.0.1:4446/v1"
+node ... 127.0.0.1:4446 (LISTEN)
+CODEX_MODEL=deepseek-reasoner
+CODEX_DEEPSEEK_KEY=(set)
+```
+
+其中 `~/.codex/config.toml` 是 Codex Desktop 当前默认生效配置；`~/.codex/deepseek.config.toml` 是备用 profile，默认仍可能显示 `deepseek-chat`，这不影响全局切换后的实际模型。
+
 恢复官方默认配置：
 
 ```bash
@@ -169,6 +182,19 @@ Check status:
 ```bash
 ~/.codex/codex-deepseek-switch.sh status
 ```
+
+A successful switch should show the important lines below:
+
+```text
+model_provider = "deepseek_proxy"
+model = "deepseek-reasoner"
+base_url = "http://127.0.0.1:4446/v1"
+node ... 127.0.0.1:4446 (LISTEN)
+CODEX_MODEL=deepseek-reasoner
+CODEX_DEEPSEEK_KEY=(set)
+```
+
+`~/.codex/config.toml` is the active Codex Desktop default config. `~/.codex/deepseek.config.toml` is only the fallback profile and may still show `deepseek-chat`; that does not override the global switch.
 
 Restore the normal config:
 
