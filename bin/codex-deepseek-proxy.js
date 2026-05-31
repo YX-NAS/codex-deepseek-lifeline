@@ -8,6 +8,7 @@ const PORT = Number(process.env.CODEX_DEEPSEEK_PROXY_PORT || "4446");
 const HOST = process.env.CODEX_DEEPSEEK_PROXY_HOST || "127.0.0.1";
 const TARGET_BASE = (process.env.CODEX_PROXY_TARGET || "https://api.deepseek.com").replace(/\/+$/, "");
 const MODEL_NAME = process.env.CODEX_MODEL || "deepseek-v4-flash";
+const THINKING_MODE = process.env.CODEX_DEEPSEEK_THINKING || "disabled";
 const API_KEY = process.env.CODEX_DEEPSEEK_KEY || "";
 const MAX_CONCURRENT = Number(process.env.CODEX_PROXY_MAX_CONCURRENT || "1");
 
@@ -111,7 +112,8 @@ function responsesToChatCompletions(body) {
   const result = {
     model: MODEL_NAME,
     messages,
-    stream: false
+    stream: false,
+    thinking: { type: THINKING_MODE }
   };
 
   if (body.max_output_tokens) result.max_tokens = body.max_output_tokens;
@@ -414,5 +416,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`codex-deepseek-lifeline proxy listening on http://${HOST}:${PORT}`);
-  console.log(`target=${TARGET_BASE} model=${MODEL_NAME}`);
+  console.log(`target=${TARGET_BASE} model=${MODEL_NAME} thinking=${THINKING_MODE}`);
 });

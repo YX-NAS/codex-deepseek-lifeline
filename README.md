@@ -74,6 +74,19 @@ CODEX_DEEPSEEK_KEY=(set)
 
 其中 `~/.codex/config.toml` 是 Codex Desktop 当前默认生效配置；`~/.codex/deepseek.config.toml` 是备用 profile，默认仍可能显示 `deepseek-v4-flash`，这不影响全局切换后的实际模型。
 
+V4 模型默认支持 thinking，但 Codex 代理目前不会完整保留 DeepSeek 返回的 `reasoning_content`。为了让 Codex 的工具调用更稳定，本项目默认以非 thinking 模式转发请求：
+
+```bash
+CODEX_DEEPSEEK_THINKING=disabled
+```
+
+如果你手动开启 thinking，复杂工具调用中可能出现 tool call 被当成普通文本展示、或者后续轮次上下文不兼容的问题。需要尝试时可以这样开启：
+
+```bash
+export CODEX_DEEPSEEK_THINKING=enabled
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
+```
+
 恢复官方默认配置：
 
 ```bash
@@ -89,6 +102,7 @@ CODEX_DEEPSEEK_KEY=(set)
 ```bash
 CODEX_PROXY_TARGET=https://api.deepseek.com
 CODEX_MODEL=deepseek-v4-flash
+CODEX_DEEPSEEK_THINKING=disabled
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
 CODEX_PROXY_MAX_CONCURRENT=1
@@ -196,6 +210,19 @@ CODEX_DEEPSEEK_KEY=(set)
 
 `~/.codex/config.toml` is the active Codex Desktop default config. `~/.codex/deepseek.config.toml` is only the fallback profile and may still show `deepseek-v4-flash`; that does not override the global switch.
 
+V4 models support thinking mode by default, but this proxy does not yet preserve DeepSeek `reasoning_content` across Codex tool-call turns. For more stable Codex tool use, requests are forwarded in non-thinking mode by default:
+
+```bash
+CODEX_DEEPSEEK_THINKING=disabled
+```
+
+If you manually enable thinking, complex tool workflows may show tool calls as plain text or fail in later turns because the context no longer matches DeepSeek's thinking-mode requirements. To try it anyway:
+
+```bash
+export CODEX_DEEPSEEK_THINKING=enabled
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
+```
+
 Restore the normal config:
 
 ```bash
@@ -211,6 +238,7 @@ Defaults:
 ```bash
 CODEX_PROXY_TARGET=https://api.deepseek.com
 CODEX_MODEL=deepseek-v4-flash
+CODEX_DEEPSEEK_THINKING=disabled
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
 CODEX_PROXY_MAX_CONCURRENT=1

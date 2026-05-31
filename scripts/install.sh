@@ -35,6 +35,7 @@ fi
 
 export CODEX_PROXY_TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
 export CODEX_MODEL="${CODEX_MODEL:-deepseek-v4-flash}"
+export CODEX_DEEPSEEK_THINKING="${CODEX_DEEPSEEK_THINKING:-disabled}"
 exec node "$HOME/.codex/codex-deepseek-proxy.js"
 SH
 
@@ -142,6 +143,7 @@ HOST="${CODEX_DEEPSEEK_PROXY_HOST:-127.0.0.1}"
 PORT="${CODEX_DEEPSEEK_PROXY_PORT:-4446}"
 TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
 MODEL="${2:-${CODEX_MODEL:-deepseek-v4-flash}}"
+THINKING="${CODEX_DEEPSEEK_THINKING:-disabled}"
 
 usage() {
   cat <<EOF
@@ -283,6 +285,7 @@ status() {
   echo
   echo "Desktop env:"
   printf "CODEX_MODEL=%s\n" "$(get_launch_env CODEX_MODEL)"
+  printf "CODEX_DEEPSEEK_THINKING=%s\n" "$(get_launch_env CODEX_DEEPSEEK_THINKING)"
   if [ -n "$(get_launch_env CODEX_DEEPSEEK_KEY)" ]; then
     echo "CODEX_DEEPSEEK_KEY=(set)"
   else
@@ -298,10 +301,12 @@ case "${1:-}" in
     set_launch_env CODEX_DEEPSEEK_KEY "$CODEX_DEEPSEEK_KEY"
     set_launch_env CODEX_MODEL "$MODEL"
     set_launch_env CODEX_PROXY_TARGET "$TARGET"
+    set_launch_env CODEX_DEEPSEEK_THINKING "$THINKING"
     write_config
     start_proxy
     echo "DeepSeek fallback is ON."
     echo "Model: $MODEL"
+    echo "Thinking: $THINKING"
     echo "Proxy: http://$HOST:$PORT/v1"
     echo "Log: $LOG"
     echo "Fully restart Codex Desktop to use this config."
@@ -312,6 +317,7 @@ case "${1:-}" in
     unset_launch_env CODEX_DEEPSEEK_KEY
     unset_launch_env CODEX_MODEL
     unset_launch_env CODEX_PROXY_TARGET
+    unset_launch_env CODEX_DEEPSEEK_THINKING
     echo "DeepSeek fallback is OFF."
     echo "Fully restart Codex Desktop to return to the normal setup."
     ;;
