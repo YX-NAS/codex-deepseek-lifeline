@@ -85,10 +85,15 @@ function outputToText(output) {
   return JSON.stringify(output ?? "");
 }
 
+function safeJsonString(value) {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value ?? {});
+}
+
 function normalizeRole(role) {
   if (role === "developer") return "system";
   if (role === "assistant" || role === "system" || role === "user") return role;
-  if (role === "tool") return "user";
+  if (role === "tool") return "tool";
   return "user";
 }
 
@@ -107,11 +112,97 @@ function normalizeTool(tool) {
   return null;
 }
 
+function toolCallSummary(toolCalls) {
+  return (toolCalls || []).map((tc) => {
+    const name = tc?.function?.name || tc?.name || "unknown_tool";
+    const args = tc?.function?.arguments || tc?.arguments || "{}";
+    return `Tool call ${name} (${tc.id || tc.call_id || "missing_call_id"}):\n${safeJsonString(args)}`;
+  }).join("\n\n");
+}
+
+function toolOutputSummary(message) {
+  const id = message.tool_call_id ? ` (${message.tool_call_id})` : "";
+  return `Tool output${id}:\n${contentToText(message.content)}`;
+}
+
+function repairToolMessageSequence(messages) {
+  const repaired = [];
+  let repairs = 0;
+
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+
+    if (message.role === "assistant" && Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+      const requiredIds = message.tool_calls.map((tc) => tc.id).filter(Boolean);
+      const followingTools = [];
+      let j = i + 1;
+
+      while (j < messages.length && messages[j].role === "tool") {
+        followingTools.push(messages[j]);
+        j++;
+      }
+
+      const toolById = new Map();
+      for (const toolMessage of followingTools) {
+        if (toolMessage.tool_call_id && !toolById.has(toolMessage.tool_call_id)) {
+          toolById.set(toolMessage.tool_call_id, toolMessage);
+        }
+      }
+
+      const hasAllRequired = requiredIds.length > 0 && requiredIds.every((id) => toolById.has(id));
+      if (hasAllRequired) {
+        repaired.push(message);
+        for (const id of requiredIds) {
+          repaired.push(toolById.get(id));
+        }
+        for (const toolMessage of followingTools) {
+          if (!toolMessage.tool_call_id || !requiredIds.includes(toolMessage.tool_call_id)) {
+            repaired.push({ role: "user", content: toolOutputSummary(toolMessage) });
+            repairs++;
+          }
+        }
+      } else {
+        const text = [contentToText(message.content), toolCallSummary(message.tool_calls)]
+          .filter((part) => part && part.trim())
+          .join("\n\n");
+        repaired.push({
+          role: "assistant",
+          content: text || "A previous tool call was omitted because no matching tool result was available."
+        });
+        for (const toolMessage of followingTools) {
+          repaired.push({ role: "user", content: toolOutputSummary(toolMessage) });
+        }
+        repairs++;
+      }
+
+      i = j - 1;
+      continue;
+    }
+
+    if (message.role === "tool") {
+      repaired.push({ role: "user", content: toolOutputSummary(message) });
+      repairs++;
+      continue;
+    }
+
+    repaired.push(message);
+  }
+
+  return { messages: repaired, repairs };
+}
+
 function responsesToChatCompletions(body) {
   const messages = [];
+  const hasTools = Array.isArray(body.tools) && body.tools.length > 0;
 
   if (typeof body.instructions === "string" && body.instructions.trim()) {
     messages.push({ role: "system", content: body.instructions });
+  }
+  if (hasTools) {
+    messages.push({
+      role: "system",
+      content: "When a tool is needed, call it with the structured tool_calls field only. Never write textual tool call transcripts such as \"Tool call name:\" in assistant content."
+    });
   }
 
   const input = Array.isArray(body.input) ? body.input : [body.input].filter(Boolean);
@@ -123,17 +214,33 @@ function responsesToChatCompletions(body) {
     if (!item || typeof item !== "object") continue;
 
     if (item.type === "function_call_output") {
-      messages.push({
-        role: "user",
-        content: `Tool output${item.call_id ? ` (${item.call_id})` : ""}:\n${outputToText(item.output)}`
-      });
+      if (item.call_id) {
+        messages.push({
+          role: "tool",
+          tool_call_id: item.call_id,
+          content: outputToText(item.output)
+        });
+      } else {
+        messages.push({
+          role: "user",
+          content: `Tool output:\n${outputToText(item.output)}`
+        });
+      }
       continue;
     }
 
     if (item.type === "function_call") {
       messages.push({
         role: "assistant",
-        content: `Tool call${item.name ? ` ${item.name}` : ""}${item.call_id ? ` (${item.call_id})` : ""}:\n${item.arguments || ""}`
+        content: null,
+        tool_calls: [{
+          id: item.call_id || item.id || `call_${messages.length}`,
+          type: "function",
+          function: {
+            name: item.name || "",
+            arguments: safeJsonString(item.arguments)
+          }
+        }]
       });
       continue;
     }
@@ -141,16 +248,20 @@ function responsesToChatCompletions(body) {
     if (item.role) {
       const role = normalizeRole(item.role);
       const content = normalizeContent(item.content);
-      messages.push({
-        role,
-        content: item.role === "tool" ? `Tool output:\n${contentToText(content)}` : content
-      });
+      const message = { role, content: item.role === "tool" ? contentToText(content) : content };
+      if (role === "tool" && item.tool_call_id) message.tool_call_id = item.tool_call_id;
+      messages.push(message);
     }
+  }
+
+  const repaired = repairToolMessageSequence(messages);
+  if (repaired.repairs > 0) {
+    console.log(`repaired ${repaired.repairs} dangling/orphan tool message sequence(s)`);
   }
 
   const result = {
     model: MODEL_NAME,
-    messages,
+    messages: repaired.messages,
     stream: false,
     thinking: { type: THINKING_MODE }
   };
@@ -178,6 +289,83 @@ function responsesToChatCompletions(body) {
   }
 
   return result;
+}
+
+function parseJsonPrefix(text) {
+  const trimmed = String(text || "").trimStart();
+  const start = trimmed.search(/[\[{]/);
+  if (start < 0) return null;
+
+  const open = trimmed[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === "\"") inString = false;
+      continue;
+    }
+    if (ch === "\"") {
+      inString = true;
+    } else if (ch === open) {
+      depth++;
+    } else if (ch === close) {
+      depth--;
+      if (depth === 0) {
+        return trimmed.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractTextToolCalls(text) {
+  if (typeof text !== "string" || !text.includes("Tool call")) return { calls: [], remainingText: text };
+
+  const headerPattern = /(?:^|\n)Tool call(?:\s+([A-Za-z0-9_.-]+))?(?:\s+\(([^)\n]+)\))?:\s*\n?/g;
+  const headers = [...text.matchAll(headerPattern)];
+  if (!headers.length) return { calls: [], remainingText: text };
+
+  const calls = [];
+  const consumed = [];
+
+  for (let i = 0; i < headers.length; i++) {
+    const match = headers[i];
+    const next = headers[i + 1];
+    const name = match[1] || "";
+    const callId = match[2] || `call_text_${i}`;
+    const argsStart = match.index + match[0].length;
+    const segmentEnd = next ? next.index : text.length;
+    const segment = text.slice(argsStart, segmentEnd);
+    const args = parseJsonPrefix(segment);
+    if (!name || !args) continue;
+
+    calls.push({
+      id: callId,
+      call_id: callId,
+      name,
+      arguments: args
+    });
+    consumed.push([match.index, argsStart + segment.indexOf(args) + args.length]);
+  }
+
+  if (!calls.length) return { calls: [], remainingText: text };
+
+  let remainingText = "";
+  let cursor = 0;
+  for (const [start, end] of consumed) {
+    remainingText += text.slice(cursor, start);
+    cursor = end;
+  }
+  remainingText += text.slice(cursor);
+
+  return { calls, remainingText: remainingText.trim() };
 }
 
 function normalizeUsage(usage) {
@@ -275,9 +463,14 @@ function chatCompletionToSse(data) {
   });
 
   let outputIndex = 0;
+  const textToolCalls = extractTextToolCalls(
+    typeof message.content === "string" ? message.content : ""
+  );
+  const messageContent = textToolCalls.remainingText;
+
   if (message.content) {
     const itemId = `${respId}_msg_0`;
-    const text = typeof message.content === "string" ? message.content : JSON.stringify(message.content);
+    const text = typeof message.content === "string" ? messageContent : JSON.stringify(message.content);
     const item = {
       id: itemId,
       type: "message",
@@ -286,33 +479,43 @@ function chatCompletionToSse(data) {
       content: [{ type: "output_text", text }]
     };
 
-    push("response.output_item.added", {
-      type: "response.output_item.added",
-      output_index: outputIndex,
-      item: { ...item, status: "in_progress", content: [] }
-    });
-    push("response.content_part.added", {
-      type: "response.content_part.added",
-      output_index: outputIndex,
-      content_index: 0,
-      part: { type: "output_text", text: "" }
-    });
-    push("response.output_text.delta", {
-      type: "response.output_text.delta",
-      output_index: outputIndex,
-      content_index: 0,
-      delta: text
-    });
-    push("response.output_item.done", {
-      type: "response.output_item.done",
-      output_index: outputIndex,
-      item
-    });
-    outputItems.push(item);
-    outputIndex++;
+    if (text) {
+      push("response.output_item.added", {
+        type: "response.output_item.added",
+        output_index: outputIndex,
+        item: { ...item, status: "in_progress", content: [] }
+      });
+      push("response.content_part.added", {
+        type: "response.content_part.added",
+        output_index: outputIndex,
+        content_index: 0,
+        part: { type: "output_text", text: "" }
+      });
+      push("response.output_text.delta", {
+        type: "response.output_text.delta",
+        output_index: outputIndex,
+        content_index: 0,
+        delta: text
+      });
+      push("response.output_item.done", {
+        type: "response.output_item.done",
+        output_index: outputIndex,
+        item
+      });
+      outputItems.push(item);
+      outputIndex++;
+    }
   }
 
-  for (const tc of message.tool_calls || []) {
+  const toolCalls = [
+    ...(message.tool_calls || []),
+    ...textToolCalls.calls.map((tc) => ({
+      id: tc.id,
+      function: { name: tc.name, arguments: tc.arguments }
+    }))
+  ];
+
+  for (const tc of toolCalls) {
     const item = {
       id: tc.id || `${respId}_fc_${outputIndex}`,
       type: "function_call",
@@ -355,18 +558,29 @@ function chatCompletionToResponse(data) {
   const choice = data.choices?.[0] || {};
   const message = choice.message || {};
   const output = [];
+  const textToolCalls = extractTextToolCalls(
+    typeof message.content === "string" ? message.content : ""
+  );
 
-  if (message.content) {
+  if (message.content && textToolCalls.remainingText) {
     output.push({
       type: "message",
       id: data.id || `msg_${Date.now()}`,
       status: "completed",
       role: "assistant",
-      content: [{ type: "output_text", text: message.content }]
+      content: [{ type: "output_text", text: textToolCalls.remainingText }]
     });
   }
 
-  for (const tc of message.tool_calls || []) {
+  const toolCalls = [
+    ...(message.tool_calls || []),
+    ...textToolCalls.calls.map((tc) => ({
+      id: tc.id,
+      function: { name: tc.name, arguments: tc.arguments }
+    }))
+  ];
+
+  for (const tc of toolCalls) {
     output.push({
       type: "function_call",
       id: tc.id,
@@ -427,6 +641,9 @@ async function doProxyRequest({ req, res, body }) {
         try {
           const parsed = JSON.parse(responseData);
           if (parsed.error) {
+            const errorCode = parsed.error.code || parsed.error.type || "unknown_error";
+            const errorMessage = parsed.error.message || JSON.stringify(parsed.error);
+            console.error(`upstream error ${upstreamRes.statusCode || 502} ${errorCode}: ${errorMessage}`);
             res.writeHead(upstreamRes.statusCode || 502, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: parsed.error }));
           } else if (body.stream === false) {
