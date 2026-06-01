@@ -85,6 +85,22 @@ target=https://api.deepseek.com model=deepseek-v4-pro thinking=disabled
 -> /v1/responses -> https://api.deepseek.com/v1/chat/completions [deepseek-v4-pro]
 ```
 
+## Visual UI
+
+Use the terminal menu:
+
+```bash
+~/.codex/codex-deepseek-switch.sh ui
+```
+
+Start the local dashboard:
+
+```bash
+~/.codex/codex-deepseek-dashboard.sh
+```
+
+The dashboard is local-only by default at `http://127.0.0.1:4456`. It can show status, usage, recent logs, and common commands. It may switch models or turn DeepSeek off when `CODEX_DEEPSEEK_KEY` is already available in the macOS launch environment, but it must not ask the user to type an API key into the browser.
+
 ## Estimate Cost
 
 Use:

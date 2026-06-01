@@ -1,6 +1,6 @@
 {
   "name": "codex-deepseek-lifeline",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "Codex plugin and local proxy for one-command DeepSeek fallback.",
   "license": "MIT",
   "type": "commonjs",
@@ -8,7 +8,7 @@
     "codex-deepseek-proxy": "bin/codex-deepseek-proxy.js"
   },
   "scripts": {
-    "check": "node --check bin/codex-deepseek-proxy.js"
+    "check": "node --check bin/codex-deepseek-proxy.js && node --check bin/codex-deepseek-dashboard.js"
   },
   "engines": {
     "node": ">=18"

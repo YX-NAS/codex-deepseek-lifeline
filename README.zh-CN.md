@@ -231,6 +231,12 @@ tail -f ~/.codex/deepseek-proxy.log
 
 # 查看费用估算
 ~/.codex/codex-deepseek-switch.sh cost
+
+# 打开终端菜单
+~/.codex/codex-deepseek-switch.sh ui
+
+# 启动本地 Web 控制台
+~/.codex/codex-deepseek-dashboard.sh
 ```
 
 旧命令仍可用：
@@ -241,6 +247,28 @@ tail -f ~/.codex/deepseek-proxy.log
 ```
 
 它们会自动转到新的 `codex-deepseek-switch.sh`。
+
+## 可视化控制台
+
+`v1.3.0` 提供两个本地可视化入口：
+
+```bash
+~/.codex/codex-deepseek-switch.sh ui
+```
+
+终端菜单可以查看状态、启动默认模型、启动 `deepseek-v4-pro`、关闭 DeepSeek、查看费用、查看最近日志，并打开 Web 控制台。
+
+```bash
+~/.codex/codex-deepseek-dashboard.sh
+```
+
+Web 控制台默认监听：
+
+```text
+http://127.0.0.1:4456
+```
+
+它可以展示代理状态、当前模型、目标地址、thinking 状态、费用摘要、最近日志和常用命令。控制台可以刷新状态、切换模型和关闭代理，但不会在网页中接收或保存 API Key；如果当前桌面环境没有 Key，请回到终端运行 `~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro`。
 
 ## 配置项
 
@@ -253,6 +281,8 @@ CODEX_DEEPSEEK_THINKING=disabled
 CODEX_DEEPSEEK_BILLING_CURRENCY=auto
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
+CODEX_DEEPSEEK_DASHBOARD_HOST=127.0.0.1
+CODEX_DEEPSEEK_DASHBOARD_PORT=4456
 CODEX_PROXY_MAX_CONCURRENT=1
 ```
 

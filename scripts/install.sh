@@ -19,6 +19,7 @@ fi
 mkdir -p "$CODEX_HOME"
 
 install -m 700 "$REPO_DIR/bin/codex-deepseek-proxy.js" "$CODEX_HOME/codex-deepseek-proxy.js"
+install -m 700 "$REPO_DIR/bin/codex-deepseek-dashboard.js" "$CODEX_HOME/codex-deepseek-dashboard.js"
 
 cat > "$CODEX_HOME/deepseek.config.toml" <<'TOML'
 model_provider = "deepseek_proxy"
@@ -64,6 +65,15 @@ if [ -z "${CODEX_DEEPSEEK_KEY:-}" ]; then
 fi
 
 exec /Applications/Codex.app/Contents/Resources/codex --profile deepseek "$@"
+SH
+
+cat > "$CODEX_HOME/codex-deepseek-dashboard.sh" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+export CODEX_DEEPSEEK_DASHBOARD_HOST="${CODEX_DEEPSEEK_DASHBOARD_HOST:-127.0.0.1}"
+export CODEX_DEEPSEEK_DASHBOARD_PORT="${CODEX_DEEPSEEK_DASHBOARD_PORT:-4456}"
+exec "__NODE_BIN__" "${CODEX_HOME:-$HOME/.codex}/codex-deepseek-dashboard.js"
 SH
 
 cat > "$CODEX_HOME/codex-deepseek-cost.sh" <<'SH'
@@ -186,6 +196,7 @@ console.log("note=estimate only; displayed in the recorded billing currency; ver
 JS
 SH
 NODE_BIN_FOR_TEMPLATE="$NODE_BIN" perl -0pi -e 's#__NODE_BIN__#$ENV{NODE_BIN_FOR_TEMPLATE}#g' "$CODEX_HOME/codex-deepseek-cost.sh"
+NODE_BIN_FOR_TEMPLATE="$NODE_BIN" perl -0pi -e 's#__NODE_BIN__#$ENV{NODE_BIN_FOR_TEMPLATE}#g' "$CODEX_HOME/codex-deepseek-dashboard.sh"
 
 cat > "$CODEX_HOME/codex-deepseek-on.sh" <<'SH'
 #!/usr/bin/env bash
@@ -274,6 +285,7 @@ CONFIG="$CODEX_HOME/config.toml"
 BACKUP="$CODEX_HOME/config.toml.before-deepseek"
 TMP="$CODEX_HOME/config.toml.deepseek-tmp"
 LOG="$CODEX_HOME/deepseek-proxy.log"
+DASHBOARD_LOG="$CODEX_HOME/deepseek-dashboard.log"
 PLIST="$HOME/Library/LaunchAgents/com.codex.deepseek-lifeline.plist"
 LABEL="com.codex.deepseek-lifeline"
 HOST="${CODEX_DEEPSEEK_PROXY_HOST:-127.0.0.1}"
@@ -290,12 +302,14 @@ Usage:
   ~/.codex/codex-deepseek-switch.sh off
   ~/.codex/codex-deepseek-switch.sh status
   ~/.codex/codex-deepseek-switch.sh cost [summary|today|all|tail]
+  ~/.codex/codex-deepseek-switch.sh ui
 
 Examples:
   ~/.codex/codex-deepseek-switch.sh on
   ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
   ~/.codex/codex-deepseek-switch.sh off
   ~/.codex/codex-deepseek-switch.sh cost today
+  ~/.codex/codex-deepseek-switch.sh ui
 EOF
 }
 
@@ -481,6 +495,50 @@ status() {
   echo "Proxy log: $LOG"
 }
 
+start_dashboard() {
+  if lsof -nP -iTCP:4456 -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "Dashboard already listening on http://127.0.0.1:4456"
+  else
+    nohup "$CODEX_HOME/codex-deepseek-dashboard.sh" > "$DASHBOARD_LOG" 2>&1 &
+    sleep 0.6
+    echo "Dashboard: http://127.0.0.1:4456"
+    echo "Dashboard log: $DASHBOARD_LOG"
+  fi
+  if command -v open >/dev/null 2>&1; then
+    open "http://127.0.0.1:4456" >/dev/null 2>&1 || true
+  fi
+}
+
+run_ui() {
+  while true; do
+    cat <<MENU
+
+Codex DeepSeek Lifeline
+1) Status
+2) Start default model (deepseek-v4-flash)
+3) Start high-capability model (deepseek-v4-pro)
+4) Turn off DeepSeek
+5) Cost summary
+6) Recent proxy log
+7) Open Web dashboard
+0) Exit
+MENU
+    printf "Choose: "
+    IFS= read -r choice
+    case "$choice" in
+      1) status ;;
+      2) "$0" on deepseek-v4-flash ;;
+      3) "$0" on deepseek-v4-pro ;;
+      4) "$0" off ;;
+      5) "$CODEX_HOME/codex-deepseek-cost.sh" summary ;;
+      6) tail -80 "$LOG" 2>/dev/null || echo "No proxy log found at $LOG" ;;
+      7) start_dashboard ;;
+      0) exit 0 ;;
+      *) echo "Unknown choice: $choice" ;;
+    esac
+  done
+}
+
 case "${1:-}" in
   on)
     require_key
@@ -517,6 +575,9 @@ case "${1:-}" in
   cost)
     exec "$CODEX_HOME/codex-deepseek-cost.sh" "${2:-summary}"
     ;;
+  ui)
+    run_ui
+    ;;
   *)
     usage
     exit 1
@@ -528,10 +589,12 @@ chmod 700 \
   "$CODEX_HOME/start-deepseek-proxy.sh" \
   "$CODEX_HOME/codex-deepseek-exec.sh" \
   "$CODEX_HOME/codex-deepseek-cost.sh" \
+  "$CODEX_HOME/codex-deepseek-dashboard.sh" \
   "$CODEX_HOME/codex-deepseek-switch.sh" \
   "$CODEX_HOME/codex-deepseek-on.sh" \
   "$CODEX_HOME/codex-deepseek-off.sh" \
-  "$CODEX_HOME/codex-deepseek-proxy.js"
+  "$CODEX_HOME/codex-deepseek-proxy.js" \
+  "$CODEX_HOME/codex-deepseek-dashboard.js"
 
 echo "Installed Codex DeepSeek Lifeline into $CODEX_HOME"
 echo "No API key was stored."

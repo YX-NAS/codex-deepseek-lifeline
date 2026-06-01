@@ -231,6 +231,12 @@ tail -f ~/.codex/deepseek-proxy.log
 
 # Show cost estimate
 ~/.codex/codex-deepseek-switch.sh cost
+
+# Open terminal menu
+~/.codex/codex-deepseek-switch.sh ui
+
+# Start the local Web dashboard
+~/.codex/codex-deepseek-dashboard.sh
 ```
 
 Legacy commands still work:
@@ -241,6 +247,28 @@ Legacy commands still work:
 ```
 
 They delegate to `codex-deepseek-switch.sh`.
+
+## Visual Dashboard
+
+`v1.3.0` adds two local visual entry points:
+
+```bash
+~/.codex/codex-deepseek-switch.sh ui
+```
+
+The terminal menu can show status, start the default model, start `deepseek-v4-pro`, turn DeepSeek off, show cost, show recent logs, and open the Web dashboard.
+
+```bash
+~/.codex/codex-deepseek-dashboard.sh
+```
+
+The Web dashboard listens on:
+
+```text
+http://127.0.0.1:4456
+```
+
+It shows proxy status, current model, target URL, thinking mode, usage summary, recent logs, and common commands. It can refresh status, switch models, and turn the proxy off, but it never accepts or stores API keys in the browser. If the desktop environment does not have a key, run `~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro` in Terminal.
 
 ## Configuration
 
@@ -253,6 +281,8 @@ CODEX_DEEPSEEK_THINKING=disabled
 CODEX_DEEPSEEK_BILLING_CURRENCY=auto
 CODEX_DEEPSEEK_PROXY_HOST=127.0.0.1
 CODEX_DEEPSEEK_PROXY_PORT=4446
+CODEX_DEEPSEEK_DASHBOARD_HOST=127.0.0.1
+CODEX_DEEPSEEK_DASHBOARD_PORT=4456
 CODEX_PROXY_MAX_CONCURRENT=1
 ```
 

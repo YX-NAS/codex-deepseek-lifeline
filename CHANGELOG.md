@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+- Added a local Web dashboard at `http://127.0.0.1:4456`.
+- Added `~/.codex/codex-deepseek-switch.sh ui` for a terminal menu.
+- Added dashboard controls for status refresh, model switching, turn-off, usage summaries, and recent logs without accepting API keys in the browser.
+- Updated install and uninstall scripts to manage dashboard files.
+
 ## 1.2.2
 
 - Repaired dangling or orphaned tool-call histories before forwarding requests to DeepSeek.
