@@ -429,7 +429,7 @@ TOML
       /^\[/ { section=$0 }
       section == "" && $0 ~ /^(model|model_provider|model_reasoning_effort)[[:space:]]*=/ { next }
       { print }
-    ' "$BACKUP"
+    ' "$CONFIG"
   } > "$TMP"
 
   mv "$TMP" "$CONFIG"

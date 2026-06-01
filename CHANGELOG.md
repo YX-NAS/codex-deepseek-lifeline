@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2
+
+- Changed `on` config rewriting to preserve the current `config.toml` instead of rebuilding from a potentially stale backup.
+- Keeps `config.toml.before-deepseek` only for `off` restore, reducing the chance that project, plugin, or desktop state appears to disappear after switching models.
+
 ## 1.4.1
 
 - Fixed `status` when the active Codex config has no top-level `model` entry.
