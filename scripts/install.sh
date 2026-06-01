@@ -24,12 +24,12 @@ install -m 700 "$REPO_DIR/bin/codex-deepseek-dashboard.js" "$CODEX_HOME/codex-de
 install -m 600 "$REPO_DIR/lib/model-catalog.js" "$CODEX_HOME/lib/model-catalog.js"
 
 cat > "$CODEX_HOME/deepseek.config.toml" <<'TOML'
-model_provider = "openai"
+model_provider = "deepseek_proxy"
 model = "deepseek-v4-flash"
 model_reasoning_effort = "low"
 
-[model_providers.openai]
-name = "OpenAI-compatible via DeepSeek local proxy"
+[model_providers.deepseek_proxy]
+name = "DeepSeek via local proxy"
 base_url = "http://127.0.0.1:4446/v1"
 env_key = "CODEX_DEEPSEEK_KEY"
 wire_api = "responses"
@@ -235,12 +235,12 @@ fi
 {
   cat <<'TOML'
 # BEGIN DEEPSEEK FALLBACK
-model_provider = "openai"
+model_provider = "deepseek_proxy"
 model = "deepseek-v4-flash"
 model_reasoning_effort = "low"
 
-[model_providers.openai]
-name = "OpenAI-compatible via DeepSeek local proxy"
+[model_providers.deepseek_proxy]
+name = "DeepSeek via local proxy"
 base_url = "http://127.0.0.1:4446/v1"
 env_key = "CODEX_DEEPSEEK_KEY"
 wire_api = "responses"
@@ -406,12 +406,12 @@ write_config() {
   {
     cat <<TOML
 # BEGIN DEEPSEEK FALLBACK
-model_provider = "openai"
+model_provider = "deepseek_proxy"
 model = "$MODEL"
 model_reasoning_effort = "low"
 
-[model_providers.openai]
-name = "OpenAI-compatible via DeepSeek local proxy"
+[model_providers.deepseek_proxy]
+name = "DeepSeek via local proxy"
 base_url = "http://$HOST:$PORT/v1"
 env_key = "CODEX_DEEPSEEK_KEY"
 wire_api = "responses"

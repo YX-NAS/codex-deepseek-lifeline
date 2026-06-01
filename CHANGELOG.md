@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.4
+
+- Reverted the `openai` provider compatibility experiment because Codex rejects overriding reserved built-in provider IDs.
+- Restored the safe `deepseek_proxy` provider while keeping the current-config preservation fix from `1.4.2`.
+
 ## 1.4.3
 
 - Changed DeepSeek fallback to reuse Codex's `openai` provider name while routing requests to the local proxy.
