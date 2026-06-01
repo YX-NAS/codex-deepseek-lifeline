@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Fixed `status` when the active Codex config has no top-level `model` entry.
+
 ## 1.4.0
 
 - Added a built-in model catalog for DeepSeek V4 Flash, V4 Pro, Chat, and Reasoner.

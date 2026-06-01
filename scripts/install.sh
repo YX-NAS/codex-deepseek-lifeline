@@ -513,7 +513,10 @@ status() {
   local status_model
   status_model="$(get_launch_env CODEX_MODEL)"
   if [ -z "$status_model" ]; then
-    status_model="$(grep -E '^model[[:space:]]*=' "$CONFIG" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+    status_model="$(grep -E '^model[[:space:]]*=' "$CONFIG" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
+  fi
+  if [ -z "$status_model" ]; then
+    status_model="$(grep -E '^model[[:space:]]*=' "$CODEX_HOME/deepseek.config.toml" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/' || true)"
   fi
   if [ -n "$status_model" ] && [ -n "$NODE_BIN" ] && [ -f "$MODEL_CATALOG" ]; then
     "$NODE_BIN" "$MODEL_CATALOG" env "$status_model" "$CODEX_HOME" "$(get_launch_env CODEX_PROXY_TARGET)" "$(get_launch_env CODEX_DEEPSEEK_BILLING_CURRENCY)" | grep -E "MODEL_DISPLAY|MODEL_PROVIDER|MODEL_TARGET|MODEL_HAS_PRICING|MODEL_SOURCE|MODEL_WARNING" || true

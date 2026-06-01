@@ -1,6 +1,6 @@
 {
   "name": "codex-deepseek-lifeline",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Codex plugin and local proxy for one-command DeepSeek fallback.",
   "license": "MIT",
   "type": "commonjs",
