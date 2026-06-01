@@ -231,7 +231,7 @@ export CODEX_DEEPSEEK_BILLING_CURRENCY=CNY
 ~/.codex/codex-deepseek-switch.sh history-list
 
 # 让指定项目的官方历史对话在 DeepSeek 模式可见
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project"
 
 # 恢复历史对话到官方 openai provider
 ~/.codex/codex-deepseek-switch.sh history-off
@@ -345,7 +345,7 @@ Web 控制台也可以查看模型目录并保存自定义模型 JSON。若 JSON
 切换一个或多个项目到 DeepSeek 可见：
 
 ```bash
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手" "/path/to/another/project"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project" "/path/to/another/project"
 ```
 
 查看当前映射和备份状态：
@@ -370,7 +370,7 @@ Web 控制台也可以查看模型目录并保存自定义模型 JSON。若 JSON
 
 ```bash
 # 1. 完全退出 Codex Desktop
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project"
 ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
 
 # 2. 使用完 DeepSeek 后，再完全退出 Codex Desktop

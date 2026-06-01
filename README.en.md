@@ -231,7 +231,7 @@ If Codex shows `Tool call exec_command ...` as plain text instead of actually tu
 ~/.codex/codex-deepseek-switch.sh history-list
 
 # Make selected official-provider project history visible in DeepSeek mode
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project"
 
 # Restore history back to the official openai provider
 ~/.codex/codex-deepseek-switch.sh history-off
@@ -345,7 +345,7 @@ List project history by provider:
 Switch one or more projects into DeepSeek visibility:
 
 ```bash
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手" "/path/to/another/project"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project" "/path/to/another/project"
 ```
 
 Inspect the active restore map:
@@ -370,7 +370,7 @@ Recommended flow:
 
 ```bash
 # 1. Fully quit Codex Desktop
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project"
 ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
 
 # 2. After using DeepSeek, fully quit Codex Desktop again

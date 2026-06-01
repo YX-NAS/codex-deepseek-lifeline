@@ -80,7 +80,7 @@ Use these commands only after the user has fully quit Codex Desktop:
 
 ```bash
 ~/.codex/codex-deepseek-switch.sh history-list
-~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh history-on "/path/to/your/project"
 ~/.codex/codex-deepseek-switch.sh history-status
 ~/.codex/codex-deepseek-switch.sh history-off
 ```
