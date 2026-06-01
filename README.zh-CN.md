@@ -322,7 +322,7 @@ bash scripts/uninstall.sh
 ## 限制
 
 - 这是非官方 DeepSeek 集成。
-- 工具调用是尽力兼容，复杂 schema 或长链路任务可能失败。
+- 工具调用是尽力兼容。代理会把历史工具调用转换为原生 `tool_calls` 消息，并会尝试把 DeepSeek 偶尔输出的 `Tool call ...` 文本转回可执行工具调用；复杂 schema 或长链路任务仍可能失败。
 - 图片输入会被丢弃。
 - Web search、长时间 agentic 任务、多工具复杂工作流，稳定性通常不如 Codex 官方模型。
 - Codex Desktop 的部分账号、同步或产品能力仍可能依赖 OpenAI / ChatGPT 服务，不能只靠本地代理完全替代。

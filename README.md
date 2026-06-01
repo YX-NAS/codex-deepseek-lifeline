@@ -58,3 +58,4 @@ See the full documentation:
 
 - [README.zh-CN.md](README.zh-CN.md)
 - [README.en.md](README.en.md)
+- [下一阶段优化设计与技术方案](docs/NEXT_PHASE_OPTIMIZATION_DESIGN.zh-CN.md)

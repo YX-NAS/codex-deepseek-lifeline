@@ -322,7 +322,7 @@ Uninstall will:
 ## Limitations
 
 - This is not an official DeepSeek integration.
-- Tool calls are best-effort; complex schemas or long tool chains may fail.
+- Tool calls are best-effort. The proxy forwards prior tool calls as native `tool_calls` messages and tries to recover occasional `Tool call ...` text emitted by DeepSeek back into executable tool calls; complex schemas or long tool chains may still fail.
 - Image input is dropped.
 - Web search, long-running agentic tasks, and complex multi-tool workflows are usually less reliable than official Codex models.
 - Some Codex Desktop account, sync, or product features may still depend on OpenAI / ChatGPT services and cannot be fully replaced by a local proxy.

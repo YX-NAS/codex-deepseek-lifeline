@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2
+
+- Repaired dangling or orphaned tool-call histories before forwarding requests to DeepSeek.
+- Added recovery for occasional textual `Tool call ...` responses emitted by the upstream model.
+- Logged upstream API errors with clearer status, code, and message details.
+- Documented current tool-call limitations and the next-phase optimization plan.
+
 ## 1.2.1
 
 - Added billing-currency-aware cost estimates with `CODEX_DEEPSEEK_BILLING_CURRENCY=auto|CNY|USD`.

@@ -143,7 +143,7 @@ CODEX_DEEPSEEK_KEY=(not set)
 
 - `Missing environment variable: CODEX_DEEPSEEK_KEY`: run `~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro` so the script can prompt for the key and write it to the macOS launch environment.
 - `EADDRINUSE 127.0.0.1:4446`: run the switch command again; it stops the old proxy before starting a new one.
-- Tool calls appear as plain text: confirm `CODEX_DEEPSEEK_THINKING=disabled` in `status`, then restart Codex Desktop.
+- Tool calls appear as plain text: update/reinstall the proxy so text-tool-call recovery is available, confirm `CODEX_DEEPSEEK_THINKING=disabled` in `status`, then restart Codex Desktop.
 - Disable command appears as `Tool call exec_command ...` text instead of executing: tell the user this means the current model response did not actually execute tools, then run `~/.codex/codex-deepseek-switch.sh off` from a tool-capable session or ask the user to paste that command into Terminal.
 - Cost shows no data: make sure at least one request has gone through the proxy after upgrading to the cost-estimate version, then check `~/.codex/deepseek-usage.jsonl`.
 - `rg: command not found`: use `grep -nE` for shell checks on machines without ripgrep.
