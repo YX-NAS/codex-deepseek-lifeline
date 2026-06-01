@@ -663,6 +663,38 @@ history_off() {
   echo "Backup: $backup"
 }
 
+history_off_if_safe() {
+  if [ ! -f "$HISTORY_MAP" ]; then
+    return
+  fi
+
+  local pids
+  pids="$(codex_pids)"
+  if [ -n "$pids" ]; then
+    echo "History visibility restore skipped because Codex is still running."
+    echo "DeepSeek fallback will still be turned off."
+    echo "Fully quit Codex Desktop, then run:"
+    echo "  ~/.codex/codex-deepseek-switch.sh history-off"
+    echo "Running PIDs:"
+    ps -p $pids -o pid=,comm= 2>/dev/null || true
+    return
+  fi
+
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "History visibility restore skipped because sqlite3 is not installed."
+    echo "DeepSeek fallback will still be turned off."
+    return
+  fi
+
+  if [ ! -f "$STATE_DB" ]; then
+    echo "History visibility restore skipped because the Codex state database is missing: $STATE_DB"
+    echo "DeepSeek fallback will still be turned off."
+    return
+  fi
+
+  history_off
+}
+
 resolve_model() {
   if [ -n "$NODE_BIN" ] && [ -f "$MODEL_CATALOG" ]; then
     eval "$("$NODE_BIN" "$MODEL_CATALOG" env "$MODEL" "$CODEX_HOME" "${CODEX_PROXY_TARGET:-}" "$BILLING_CURRENCY")"
@@ -749,7 +781,6 @@ case "${1:-}" in
     echo "Fully restart Codex Desktop to use this config."
     ;;
   off)
-    history_off
     stop_proxy
     restore_config
     unset_launch_env CODEX_DEEPSEEK_KEY
@@ -758,6 +789,7 @@ case "${1:-}" in
     unset_launch_env CODEX_DEEPSEEK_THINKING
     unset_launch_env CODEX_DEEPSEEK_BILLING_CURRENCY
     rm -f "$PLIST"
+    history_off_if_safe
     echo "DeepSeek fallback is OFF."
     echo "Fully restart Codex Desktop to return to the normal setup."
     ;;

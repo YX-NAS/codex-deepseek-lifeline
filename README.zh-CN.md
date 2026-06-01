@@ -207,8 +207,15 @@ export CODEX_DEEPSEEK_BILLING_CURRENCY=CNY
 - 停止本地代理。
 - 恢复切换前备份的 `~/.codex/config.toml`。
 - 清除 macOS launch 环境里的 `CODEX_DEEPSEEK_KEY`、`CODEX_MODEL`、`CODEX_PROXY_TARGET` 和 `CODEX_DEEPSEEK_THINKING`。
+- 如果存在历史可见性切换记录，并且 Codex 已完全退出，会顺便恢复历史线程到 `openai`；如果 Codex 仍在运行，则会跳过历史恢复，但仍会完成 DeepSeek 关闭。
 
 关闭后同样建议完全退出并重新打开 Codex Desktop。
+
+如果关闭时提示 `History visibility restore skipped because Codex is still running`，说明 DeepSeek 配置已经恢复，但历史线程还没有改回官方 provider。完全退出 Codex Desktop 后再运行：
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-off
+```
 
 如果 Codex 对话里显示了 `Tool call exec_command ...` 这样的文字，而没有真正关闭，说明当前模型把工具调用当成普通文本输出了。请直接在终端执行上面的 `off` 命令。
 
@@ -375,6 +382,10 @@ Web 控制台也可以查看模型目录并保存自定义模型 JSON。若 JSON
 
 # 2. 使用完 DeepSeek 后，再完全退出 Codex Desktop
 ~/.codex/codex-deepseek-switch.sh off
+
+# 如果 off 时 Codex 仍在运行，历史恢复会被安全跳过。
+# 完全退出后可单独恢复历史：
+~/.codex/codex-deepseek-switch.sh history-off
 ```
 
 ## 配置项

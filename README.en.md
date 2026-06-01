@@ -207,8 +207,15 @@ It will:
 - Stop the local proxy.
 - Restore the previous `~/.codex/config.toml` backup.
 - Clear `CODEX_DEEPSEEK_KEY`, `CODEX_MODEL`, `CODEX_PROXY_TARGET`, and `CODEX_DEEPSEEK_THINKING` from the macOS launch environment.
+- Restore history visibility back to `openai` when Codex Desktop is fully quit. If Codex is still running, it skips only the history restore and still turns DeepSeek off.
 
 After turning it off, fully quit and reopen Codex Desktop.
+
+If `off` prints `History visibility restore skipped because Codex is still running`, the DeepSeek config was already restored but local history threads were not moved back to the official provider yet. Fully quit Codex Desktop, then run:
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-off
+```
 
 If Codex shows `Tool call exec_command ...` as plain text instead of actually turning the proxy off, the current model emitted a tool call as text. Run the `off` command directly in Terminal.
 
@@ -375,6 +382,10 @@ Recommended flow:
 
 # 2. After using DeepSeek, fully quit Codex Desktop again
 ~/.codex/codex-deepseek-switch.sh off
+
+# If Codex is still running during off, history restore is safely skipped.
+# Fully quit later and restore history separately:
+~/.codex/codex-deepseek-switch.sh history-off
 ```
 
 ## Configuration

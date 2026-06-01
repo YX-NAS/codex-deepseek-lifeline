@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fixed `off` so it still disables DeepSeek and restores config even when Codex Desktop is running.
+- If history visibility restoration is unsafe because Codex is running, `off` now skips only that step and tells the user to run `history-off` after quitting Codex.
+
 ## 1.5.0
 
 - Added history visibility commands for DeepSeek mode: `history-list`, `history-on`, `history-off`, and `history-status`.
