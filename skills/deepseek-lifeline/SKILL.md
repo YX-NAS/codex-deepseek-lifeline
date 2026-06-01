@@ -74,6 +74,19 @@ The active model is shown in `~/.codex/config.toml`, `CODEX_MODEL`, and the prox
 
 DeepSeek mode uses the custom `deepseek_proxy` provider. Codex Desktop may hide historical OpenAI-provider project conversations while this provider is active; use `off` and restart Codex to restore the official provider view.
 
+## History Visibility
+
+Use these commands only after the user has fully quit Codex Desktop:
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-list
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh history-status
+~/.codex/codex-deepseek-switch.sh history-off
+```
+
+`history-on` backs up `~/.codex/state_5.sqlite`, records a restore map in `~/.codex/deepseek-history/provider-map.tsv`, and changes selected project threads from `openai` to `deepseek_proxy`. `history-off` restores the original providers from that map. If Codex is running, the command must refuse to proceed.
+
 ## View Logs
 
 ```bash

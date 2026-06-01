@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0
+
+- Added history visibility commands for DeepSeek mode: `history-list`, `history-on`, `history-off`, and `history-status`.
+- History switching backs up `state_5.sqlite`, records a per-thread restore map, and refuses to run while Codex is still running.
+- `off` restores any active history visibility switch before returning to the official provider configuration.
+
 ## 1.4.4
 
 - Reverted the `openai` provider compatibility experiment because Codex rejects overriding reserved built-in provider IDs.

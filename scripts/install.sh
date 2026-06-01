@@ -299,6 +299,9 @@ BACKUP="$CODEX_HOME/config.toml.before-deepseek"
 TMP="$CODEX_HOME/config.toml.deepseek-tmp"
 LOG="$CODEX_HOME/deepseek-proxy.log"
 DASHBOARD_LOG="$CODEX_HOME/deepseek-dashboard.log"
+STATE_DB="$CODEX_HOME/state_5.sqlite"
+HISTORY_DIR="$CODEX_HOME/deepseek-history"
+HISTORY_MAP="$HISTORY_DIR/provider-map.tsv"
 PLIST="$HOME/Library/LaunchAgents/com.codex.deepseek-lifeline.plist"
 LABEL="com.codex.deepseek-lifeline"
 HOST="${CODEX_DEEPSEEK_PROXY_HOST:-127.0.0.1}"
@@ -317,6 +320,10 @@ Usage:
   ~/.codex/codex-deepseek-switch.sh off
   ~/.codex/codex-deepseek-switch.sh status
   ~/.codex/codex-deepseek-switch.sh models
+  ~/.codex/codex-deepseek-switch.sh history-list
+  ~/.codex/codex-deepseek-switch.sh history-on [project_path ...]
+  ~/.codex/codex-deepseek-switch.sh history-off
+  ~/.codex/codex-deepseek-switch.sh history-status
   ~/.codex/codex-deepseek-switch.sh cost [summary|today|all|tail]
   ~/.codex/codex-deepseek-switch.sh ui
 
@@ -325,6 +332,9 @@ Examples:
   ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
   ~/.codex/codex-deepseek-switch.sh off
   ~/.codex/codex-deepseek-switch.sh models
+  ~/.codex/codex-deepseek-switch.sh history-list
+  ~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+  ~/.codex/codex-deepseek-switch.sh history-off
   ~/.codex/codex-deepseek-switch.sh cost today
   ~/.codex/codex-deepseek-switch.sh ui
 EOF
@@ -350,6 +360,32 @@ get_launch_env() {
 
 listener_pids() {
   lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true
+}
+
+codex_pids() {
+  pgrep -f "/Applications/Codex.app|Codex Helper|Contents/Resources/codex" 2>/dev/null | grep -v "^$$$" || true
+}
+
+require_codex_quit() {
+  local pids
+  pids="$(codex_pids)"
+  if [ -n "$pids" ]; then
+    echo "Codex is still running. Fully quit Codex Desktop before switching history visibility."
+    echo "Running PIDs:"
+    ps -p $pids -o pid=,comm= 2>/dev/null || true
+    exit 1
+  fi
+}
+
+require_sqlite() {
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "sqlite3 is required for history visibility switching."
+    exit 1
+  fi
+  if [ ! -f "$STATE_DB" ]; then
+    echo "Missing Codex state database: $STATE_DB"
+    exit 1
+  fi
 }
 
 stop_proxy() {
@@ -535,6 +571,98 @@ models() {
   "$NODE_BIN" "$MODEL_CATALOG" list "$CODEX_HOME"
 }
 
+sql_quote() {
+  printf "%s" "$1" | sed "s/'/''/g"
+}
+
+history_backup() {
+  mkdir -p "$HISTORY_DIR"
+  local ts backup
+  ts="$(date +%Y%m%d-%H%M%S)"
+  backup="$HISTORY_DIR/state_5.sqlite.$ts.bak"
+  cp "$STATE_DB" "$backup"
+  echo "$backup"
+}
+
+history_list() {
+  require_sqlite
+  sqlite3 -header -column "$STATE_DB" "
+    SELECT cwd AS project,
+           SUM(CASE WHEN model_provider='openai' THEN 1 ELSE 0 END) AS openai,
+           SUM(CASE WHEN model_provider='deepseek_proxy' THEN 1 ELSE 0 END) AS deepseek_proxy,
+           COUNT(*) AS total
+    FROM threads
+    WHERE archived=0
+    GROUP BY cwd
+    ORDER BY MAX(updated_at_ms) DESC;
+  "
+}
+
+history_status() {
+  require_sqlite
+  echo "History map: $HISTORY_MAP"
+  if [ -f "$HISTORY_MAP" ]; then
+    echo
+    awk -F '\t' 'BEGIN { printf "%-38s  %-14s  %-14s  %s\n", "thread_id", "from", "to", "project" } { printf "%-38s  %-14s  %-14s  %s\n", $1, $3, $4, $2 }' "$HISTORY_MAP"
+  else
+    echo "No active history visibility switch."
+  fi
+  echo
+  history_list
+}
+
+history_on() {
+  require_codex_quit
+  require_sqlite
+  if [ "$#" -eq 0 ]; then
+    echo "Choose one or more project paths:"
+    history_list
+    echo
+    echo "Usage: ~/.codex/codex-deepseek-switch.sh history-on \"PROJECT_PATH\" [PROJECT_PATH ...]"
+    exit 1
+  fi
+  mkdir -p "$HISTORY_DIR"
+  local backup
+  backup="$(history_backup)"
+  : > "$HISTORY_MAP"
+  local project escaped count
+  for project in "$@"; do
+    escaped="$(sql_quote "$project")"
+    count="$(sqlite3 "$STATE_DB" "SELECT COUNT(*) FROM threads WHERE cwd='$escaped' AND model_provider='openai';")"
+    if [ "$count" -eq 0 ]; then
+      echo "No openai history found for: $project"
+      continue
+    fi
+    sqlite3 "$STATE_DB" "SELECT id || char(9) || cwd || char(9) || model_provider || char(9) || 'deepseek_proxy' FROM threads WHERE cwd='$escaped' AND model_provider='openai';" >> "$HISTORY_MAP"
+    sqlite3 "$STATE_DB" "UPDATE threads SET model_provider='deepseek_proxy' WHERE cwd='$escaped' AND model_provider='openai';"
+    echo "Switched $count history thread(s): $project"
+  done
+  echo "Backup: $backup"
+  echo "Map: $HISTORY_MAP"
+}
+
+history_off() {
+  require_codex_quit
+  require_sqlite
+  if [ ! -f "$HISTORY_MAP" ]; then
+    echo "No active history visibility switch."
+    return
+  fi
+  local backup thread_id from_provider escaped_id restored
+  backup="$(history_backup)"
+  restored=0
+  while IFS="$(printf '\t')" read -r thread_id _cwd from_provider _to_provider; do
+    [ -n "$thread_id" ] || continue
+    escaped_id="$(sql_quote "$thread_id")"
+    from_provider="$(sql_quote "$from_provider")"
+    sqlite3 "$STATE_DB" "UPDATE threads SET model_provider='$from_provider' WHERE id='$escaped_id';"
+    restored=$((restored + 1))
+  done < "$HISTORY_MAP"
+  mv "$HISTORY_MAP" "$HISTORY_MAP.restored.$(date +%Y%m%d-%H%M%S)"
+  echo "Restored $restored history thread(s)."
+  echo "Backup: $backup"
+}
+
 resolve_model() {
   if [ -n "$NODE_BIN" ] && [ -f "$MODEL_CATALOG" ]; then
     eval "$("$NODE_BIN" "$MODEL_CATALOG" env "$MODEL" "$CODEX_HOME" "${CODEX_PROXY_TARGET:-}" "$BILLING_CURRENCY")"
@@ -621,6 +749,7 @@ case "${1:-}" in
     echo "Fully restart Codex Desktop to use this config."
     ;;
   off)
+    history_off
     stop_proxy
     restore_config
     unset_launch_env CODEX_DEEPSEEK_KEY
@@ -637,6 +766,19 @@ case "${1:-}" in
     ;;
   models)
     models
+    ;;
+  history-list)
+    history_list
+    ;;
+  history-on)
+    shift
+    history_on "$@"
+    ;;
+  history-off)
+    history_off
+    ;;
+  history-status)
+    history_status
     ;;
   cost)
     exec "$CODEX_HOME/codex-deepseek-cost.sh" "${2:-summary}"

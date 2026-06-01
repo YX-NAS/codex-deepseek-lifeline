@@ -227,6 +227,15 @@ export CODEX_DEEPSEEK_BILLING_CURRENCY=CNY
 # 查看可用模型
 ~/.codex/codex-deepseek-switch.sh models
 
+# 查看项目历史会话分布
+~/.codex/codex-deepseek-switch.sh history-list
+
+# 让指定项目的官方历史对话在 DeepSeek 模式可见
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+
+# 恢复历史对话到官方 openai provider
+~/.codex/codex-deepseek-switch.sh history-off
+
 # 关闭
 ~/.codex/codex-deepseek-switch.sh off
 
@@ -322,6 +331,51 @@ http://127.0.0.1:4456
 ```
 
 Web 控制台也可以查看模型目录并保存自定义模型 JSON。若 JSON 格式错误，官方内置模型仍会正常可用。
+
+## 历史对话可见性切换
+
+如果你希望切到 DeepSeek 后继续在项目卡片里看到官方模式下的历史对话，可以使用历史可见性命令。它会直接修改 Codex 本地 SQLite 中的线程 `model_provider`，因此必须先完全退出 Codex Desktop；检测到 Codex 仍在运行时会拒绝执行。
+
+查看各项目历史分布：
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-list
+```
+
+切换一个或多个项目到 DeepSeek 可见：
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手" "/path/to/another/project"
+```
+
+查看当前映射和备份状态：
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-status
+```
+
+恢复全部被切换的线程到 `openai`：
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-off
+```
+
+`history-on` 和 `history-off` 每次都会备份：
+
+```text
+~/.codex/deepseek-history/state_5.sqlite.YYYYMMDD-HHMMSS.bak
+```
+
+推荐流程：
+
+```bash
+# 1. 完全退出 Codex Desktop
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
+
+# 2. 使用完 DeepSeek 后，再完全退出 Codex Desktop
+~/.codex/codex-deepseek-switch.sh off
+```
 
 ## 配置项
 

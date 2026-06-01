@@ -227,6 +227,15 @@ If Codex shows `Tool call exec_command ...` as plain text instead of actually tu
 # List available models
 ~/.codex/codex-deepseek-switch.sh models
 
+# List project history by provider
+~/.codex/codex-deepseek-switch.sh history-list
+
+# Make selected official-provider project history visible in DeepSeek mode
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+
+# Restore history back to the official openai provider
+~/.codex/codex-deepseek-switch.sh history-off
+
 # Turn off
 ~/.codex/codex-deepseek-switch.sh off
 
@@ -322,6 +331,51 @@ Example:
 ```
 
 The Web dashboard can also list catalog models and save custom model JSON. If the custom JSON is invalid, built-in models remain available.
+
+## History Visibility Switching
+
+If you want project cards to keep showing official-mode history after switching to DeepSeek, use the history visibility commands. They directly update the local Codex SQLite thread `model_provider`, so Codex Desktop must be fully quit first; the command refuses to run while Codex is still running.
+
+List project history by provider:
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-list
+```
+
+Switch one or more projects into DeepSeek visibility:
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手" "/path/to/another/project"
+```
+
+Inspect the active restore map:
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-status
+```
+
+Restore all switched threads back to `openai`:
+
+```bash
+~/.codex/codex-deepseek-switch.sh history-off
+```
+
+Every `history-on` and `history-off` creates a database backup:
+
+```text
+~/.codex/deepseek-history/state_5.sqlite.YYYYMMDD-HHMMSS.bak
+```
+
+Recommended flow:
+
+```bash
+# 1. Fully quit Codex Desktop
+~/.codex/codex-deepseek-switch.sh history-on "/Users/yaxun/Documents/电脑助手"
+~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
+
+# 2. After using DeepSeek, fully quit Codex Desktop again
+~/.codex/codex-deepseek-switch.sh off
+```
 
 ## Configuration
 
