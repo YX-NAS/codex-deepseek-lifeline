@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.3
+
+- Changed DeepSeek fallback to reuse Codex's `openai` provider name while routing requests to the local proxy.
+- This keeps existing OpenAI-provider project conversations visible in Codex Desktop after switching to DeepSeek and restarting.
+
 ## 1.4.2
 
 - Changed `on` config rewriting to preserve the current `config.toml` instead of rebuilding from a potentially stale backup.

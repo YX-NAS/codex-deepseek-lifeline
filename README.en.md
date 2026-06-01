@@ -122,7 +122,7 @@ After turning it on, fully quit and reopen Codex Desktop. Starting a new chat al
 A successful switch should show the key lines below:
 
 ```text
-model_provider = "deepseek_proxy"
+model_provider = "openai"
 model = "deepseek-v4-pro"
 base_url = "http://127.0.0.1:4446/v1"
 node ... 127.0.0.1:4446 (LISTEN)
@@ -136,6 +136,7 @@ Notes:
 - `~/.codex/config.toml` is the active default config for Codex Desktop.
 - `~/.codex/deepseek.config.toml` is a fallback profile and may still show `deepseek-v4-flash`.
 - The actual request model is determined by `config.toml`, `CODEX_MODEL`, and the proxy log.
+- To keep existing Codex Desktop project conversations visible, DeepSeek mode reuses the `openai` provider name while temporarily routing it to the local proxy; `off` restores the original config.
 
 View the proxy log:
 

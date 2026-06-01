@@ -63,7 +63,7 @@ The script prompts for the DeepSeek API key if it is not already available from 
 A healthy state should show:
 
 ```text
-model_provider = "deepseek_proxy"
+model_provider = "openai"
 base_url = "http://127.0.0.1:4446/v1"
 node ... 127.0.0.1:4446 (LISTEN)
 CODEX_DEEPSEEK_THINKING=disabled
@@ -71,6 +71,8 @@ CODEX_DEEPSEEK_KEY=(set)
 ```
 
 The active model is shown in `~/.codex/config.toml`, `CODEX_MODEL`, and the proxy log.
+
+DeepSeek mode intentionally reuses the `openai` provider name so Codex Desktop keeps showing existing OpenAI-provider project conversations. The local proxy still routes requests to DeepSeek.
 
 ## View Logs
 

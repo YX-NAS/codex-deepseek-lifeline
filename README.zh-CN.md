@@ -122,7 +122,7 @@ DeepSeek API Key:
 切换成功时，重点看这些信息：
 
 ```text
-model_provider = "deepseek_proxy"
+model_provider = "openai"
 model = "deepseek-v4-pro"
 base_url = "http://127.0.0.1:4446/v1"
 node ... 127.0.0.1:4446 (LISTEN)
@@ -136,6 +136,7 @@ CODEX_DEEPSEEK_KEY=(set)
 - `~/.codex/config.toml` 是 Codex Desktop 当前默认生效配置。
 - `~/.codex/deepseek.config.toml` 是备用 profile，默认可能仍显示 `deepseek-v4-flash`。
 - 实际请求使用哪个模型，以 `config.toml`、`CODEX_MODEL` 和代理日志为准。
+- 为了让 Codex Desktop 的项目对话列表继续显示历史对话，DeepSeek 模式会复用 `openai` provider 名称，并把它临时指向本地代理；执行 `off` 后会恢复原配置。
 
 查看代理日志：
 
