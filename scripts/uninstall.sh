@@ -34,6 +34,7 @@ fi
 rm -f \
   "$CODEX_HOME/codex-deepseek-proxy.js" \
   "$CODEX_HOME/codex-deepseek-dashboard.js" \
+  "$CODEX_HOME/lib/model-catalog.js" \
   "$CODEX_HOME/deepseek.config.toml" \
   "$CODEX_HOME/start-deepseek-proxy.sh" \
   "$CODEX_HOME/codex-deepseek-exec.sh" \
@@ -46,5 +47,7 @@ rm -f \
   "$CODEX_HOME/deepseek-proxy.log" \
   "$CODEX_HOME/deepseek-dashboard.log" \
   "$PLIST"
+
+rmdir "$CODEX_HOME/lib" 2>/dev/null || true
 
 echo "Removed Codex DeepSeek Lifeline files from $CODEX_HOME"

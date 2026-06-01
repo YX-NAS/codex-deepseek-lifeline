@@ -101,6 +101,16 @@ Start the local dashboard:
 
 The dashboard is local-only by default at `http://127.0.0.1:4456`. It can show status, usage, recent logs, and common commands. It may switch models or turn DeepSeek off when `CODEX_DEEPSEEK_KEY` is already available in the macOS launch environment, but it must not ask the user to type an API key into the browser.
 
+## Model Catalog
+
+List built-in and custom models:
+
+```bash
+~/.codex/codex-deepseek-switch.sh models
+```
+
+Built-in models are `deepseek-v4-flash`, `deepseek-v4-pro`, `deepseek-chat`, and `deepseek-reasoner`. Custom OpenAI-compatible models are read from `~/.codex/deepseek-models.custom.json`. If custom model JSON is invalid, report the warning but continue using built-in models. Unknown or unpriced models may still run, but cost estimates must be described as `n/a`.
+
 ## Estimate Cost
 
 Use:

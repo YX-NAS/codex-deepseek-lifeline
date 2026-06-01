@@ -223,6 +223,9 @@ If Codex shows `Tool call exec_command ...` as plain text instead of actually tu
 # Check status
 ~/.codex/codex-deepseek-switch.sh status
 
+# List available models
+~/.codex/codex-deepseek-switch.sh models
+
 # Turn off
 ~/.codex/codex-deepseek-switch.sh off
 
@@ -269,6 +272,55 @@ http://127.0.0.1:4456
 ```
 
 It shows proxy status, current model, target URL, thinking mode, usage summary, recent logs, and common commands. It can refresh status, switch models, and turn the proxy off, but it never accepts or stores API keys in the browser. If the desktop environment does not have a key, run `~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro` in Terminal.
+
+## Model Catalog and Custom Models
+
+`v1.4.0` includes a built-in DeepSeek model catalog:
+
+- `deepseek-v4-flash`
+- `deepseek-v4-pro`
+- `deepseek-chat`
+- `deepseek-reasoner`
+
+List models:
+
+```bash
+~/.codex/codex-deepseek-switch.sh models
+```
+
+`status` shows the active model display name, provider, target URL, source, and whether pricing is available. Models without pricing can still run, but cost estimates show `n/a`.
+
+Custom OpenAI-compatible models live at:
+
+```text
+~/.codex/deepseek-models.custom.json
+```
+
+Example:
+
+```json
+{
+  "models": [
+    {
+      "id": "my-compatible-model",
+      "displayName": "My Compatible Model",
+      "provider": "Custom",
+      "targetBase": "https://api.example.com",
+      "billingCurrency": "USD",
+      "pricesPer1M": {
+        "USD": {
+          "inputCacheHit": 0,
+          "inputCacheMiss": 0.2,
+          "output": 0.6
+        }
+      },
+      "notes": "OpenAI-compatible Chat Completions endpoint"
+    }
+  ]
+}
+```
+
+The Web dashboard can also list catalog models and save custom model JSON. If the custom JSON is invalid, built-in models remain available.
 
 ## Configuration
 

@@ -17,9 +17,11 @@ if [ -z "$NODE_BIN" ]; then
   exit 1
 fi
 mkdir -p "$CODEX_HOME"
+mkdir -p "$CODEX_HOME/lib"
 
 install -m 700 "$REPO_DIR/bin/codex-deepseek-proxy.js" "$CODEX_HOME/codex-deepseek-proxy.js"
 install -m 700 "$REPO_DIR/bin/codex-deepseek-dashboard.js" "$CODEX_HOME/codex-deepseek-dashboard.js"
+install -m 600 "$REPO_DIR/lib/model-catalog.js" "$CODEX_HOME/lib/model-catalog.js"
 
 cat > "$CODEX_HOME/deepseek.config.toml" <<'TOML'
 model_provider = "deepseek_proxy"
@@ -80,7 +82,8 @@ cat > "$CODEX_HOME/codex-deepseek-cost.sh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 
-USAGE_LOG="${CODEX_DEEPSEEK_USAGE_LOG:-$HOME/.codex/deepseek-usage.jsonl}"
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+USAGE_LOG="${CODEX_DEEPSEEK_USAGE_LOG:-$CODEX_HOME/deepseek-usage.jsonl}"
 MODE="${1:-summary}"
 
 if [ ! -f "$USAGE_LOG" ]; then
@@ -127,21 +130,26 @@ function summarize(items) {
   };
   const byModel = new Map();
   const byCurrency = new Map();
+  let unknownCost = false;
 
   for (const item of items) {
     const tokens = item.tokens || {};
     const currency = item.billing_currency || (item.estimated_usd ? "USD" : "UNKNOWN");
-    const amount = item.estimated_amount || item.estimated_usd || {};
+    const amount = item.estimated_amount || item.estimated_usd || null;
     total.input += tokens.input || 0;
     total.cacheHit += tokens.cacheHit || 0;
     total.cacheMiss += tokens.cacheMiss || 0;
     total.output += tokens.output || 0;
 
-    byCurrency.set(currency, (byCurrency.get(currency) || 0) + (amount.total || 0));
+    if (amount && typeof amount.total === "number") {
+      byCurrency.set(currency, (byCurrency.get(currency) || 0) + amount.total);
+    } else {
+      unknownCost = true;
+    }
 
     const model = item.model || "unknown";
     if (!byModel.has(model)) {
-      byModel.set(model, { requests: 0, input: 0, cacheHit: 0, cacheMiss: 0, output: 0, currencies: new Map() });
+      byModel.set(model, { requests: 0, input: 0, cacheHit: 0, cacheMiss: 0, output: 0, currencies: new Map(), unknownCost: false });
     }
     const row = byModel.get(model);
     row.requests += 1;
@@ -149,28 +157,33 @@ function summarize(items) {
     row.cacheHit += tokens.cacheHit || 0;
     row.cacheMiss += tokens.cacheMiss || 0;
     row.output += tokens.output || 0;
-    row.currencies.set(currency, (row.currencies.get(currency) || 0) + (amount.total || 0));
+    if (amount && typeof amount.total === "number") {
+      row.currencies.set(currency, (row.currencies.get(currency) || 0) + amount.total);
+    } else {
+      row.unknownCost = true;
+    }
   }
 
-  return { total, byModel, byCurrency };
+  return { total, byModel, byCurrency, unknownCost };
 }
 
-function formatAmounts(amounts) {
+function formatAmounts(amounts, unknownCost = false) {
+  if (unknownCost) return "n/a";
   if (!amounts.size) return "n/a";
   return [...amounts.entries()].map(([currency, value]) => `${currency} ${value.toFixed(6)}`).join(", ");
 }
 
 function printSummary(title, items) {
-  const { total, byModel, byCurrency } = summarize(items);
+  const { total, byModel, byCurrency, unknownCost } = summarize(items);
   console.log(title);
   console.log(`requests=${total.requests}`);
   console.log(`input_tokens=${total.input} cache_hit=${total.cacheHit} cache_miss=${total.cacheMiss} output_tokens=${total.output}`);
-  console.log(`estimated_cost=${formatAmounts(byCurrency)}`);
+  console.log(`estimated_cost=${formatAmounts(byCurrency, unknownCost)}`);
   if (byModel.size) {
     console.log("");
     console.log("by_model:");
     for (const [model, row] of byModel) {
-      console.log(`  ${model}: requests=${row.requests} input=${row.input} cache_hit=${row.cacheHit} cache_miss=${row.cacheMiss} output=${row.output} estimated_cost=${formatAmounts(row.currencies)}`);
+      console.log(`  ${model}: requests=${row.requests} input=${row.input} cache_hit=${row.cacheHit} cache_miss=${row.cacheMiss} output=${row.output} estimated_cost=${formatAmounts(row.currencies, row.unknownCost)}`);
     }
   }
 }
@@ -294,6 +307,8 @@ TARGET="${CODEX_PROXY_TARGET:-https://api.deepseek.com}"
 MODEL="${2:-${CODEX_MODEL:-deepseek-v4-flash}}"
 THINKING="${CODEX_DEEPSEEK_THINKING:-disabled}"
 BILLING_CURRENCY="${CODEX_DEEPSEEK_BILLING_CURRENCY:-auto}"
+NODE_BIN="${NODE_BIN:-$(command -v node || true)}"
+MODEL_CATALOG="$CODEX_HOME/lib/model-catalog.js"
 
 usage() {
   cat <<EOF
@@ -301,6 +316,7 @@ Usage:
   ~/.codex/codex-deepseek-switch.sh on [model]
   ~/.codex/codex-deepseek-switch.sh off
   ~/.codex/codex-deepseek-switch.sh status
+  ~/.codex/codex-deepseek-switch.sh models
   ~/.codex/codex-deepseek-switch.sh cost [summary|today|all|tail]
   ~/.codex/codex-deepseek-switch.sh ui
 
@@ -308,6 +324,7 @@ Examples:
   ~/.codex/codex-deepseek-switch.sh on
   ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
   ~/.codex/codex-deepseek-switch.sh off
+  ~/.codex/codex-deepseek-switch.sh models
   ~/.codex/codex-deepseek-switch.sh cost today
   ~/.codex/codex-deepseek-switch.sh ui
 EOF
@@ -492,7 +509,40 @@ status() {
     echo "CODEX_DEEPSEEK_KEY=(not set)"
   fi
   echo
+  echo "Model catalog:"
+  local status_model
+  status_model="$(get_launch_env CODEX_MODEL)"
+  if [ -z "$status_model" ]; then
+    status_model="$(grep -E '^model[[:space:]]*=' "$CONFIG" 2>/dev/null | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+  fi
+  if [ -n "$status_model" ] && [ -n "$NODE_BIN" ] && [ -f "$MODEL_CATALOG" ]; then
+    "$NODE_BIN" "$MODEL_CATALOG" env "$status_model" "$CODEX_HOME" "$(get_launch_env CODEX_PROXY_TARGET)" "$(get_launch_env CODEX_DEEPSEEK_BILLING_CURRENCY)" | grep -E "MODEL_DISPLAY|MODEL_PROVIDER|MODEL_TARGET|MODEL_HAS_PRICING|MODEL_SOURCE|MODEL_WARNING" || true
+  else
+    echo "Model catalog is unavailable."
+  fi
+  echo
   echo "Proxy log: $LOG"
+}
+
+models() {
+  if [ -z "$NODE_BIN" ] || [ ! -f "$MODEL_CATALOG" ]; then
+    echo "Model catalog is unavailable. Re-run: bash scripts/install.sh"
+    exit 1
+  fi
+  "$NODE_BIN" "$MODEL_CATALOG" list "$CODEX_HOME"
+}
+
+resolve_model() {
+  if [ -n "$NODE_BIN" ] && [ -f "$MODEL_CATALOG" ]; then
+    eval "$("$NODE_BIN" "$MODEL_CATALOG" env "$MODEL" "$CODEX_HOME" "${CODEX_PROXY_TARGET:-}" "$BILLING_CURRENCY")"
+    TARGET="$MODEL_TARGET"
+    THINKING="${CODEX_DEEPSEEK_THINKING:-$MODEL_THINKING}"
+    BILLING_CURRENCY="$MODEL_BILLING_CURRENCY"
+  else
+    MODEL_DISPLAY="$MODEL"
+    MODEL_HAS_PRICING=0
+    MODEL_WARNING="Model catalog is unavailable. Re-run: bash scripts/install.sh"
+  fi
 }
 
 start_dashboard() {
@@ -520,7 +570,8 @@ Codex DeepSeek Lifeline
 4) Turn off DeepSeek
 5) Cost summary
 6) Recent proxy log
-7) Open Web dashboard
+7) Model catalog
+8) Open Web dashboard
 0) Exit
 MENU
     printf "Choose: "
@@ -532,7 +583,8 @@ MENU
       4) "$0" off ;;
       5) "$CODEX_HOME/codex-deepseek-cost.sh" summary ;;
       6) tail -80 "$LOG" 2>/dev/null || echo "No proxy log found at $LOG" ;;
-      7) start_dashboard ;;
+      7) models ;;
+      8) start_dashboard ;;
       0) exit 0 ;;
       *) echo "Unknown choice: $choice" ;;
     esac
@@ -542,6 +594,7 @@ MENU
 case "${1:-}" in
   on)
     require_key
+    resolve_model
     set_launch_env CODEX_DEEPSEEK_KEY "$CODEX_DEEPSEEK_KEY"
     set_launch_env CODEX_MODEL "$MODEL"
     set_launch_env CODEX_PROXY_TARGET "$TARGET"
@@ -551,6 +604,13 @@ case "${1:-}" in
     start_proxy
     echo "DeepSeek fallback is ON."
     echo "Model: $MODEL"
+    echo "Model name: ${MODEL_DISPLAY:-$MODEL}"
+    if [ "${MODEL_HAS_PRICING:-0}" != "1" ]; then
+      echo "Pricing: n/a"
+    fi
+    if [ -n "${MODEL_WARNING:-}" ]; then
+      echo "Warning: $MODEL_WARNING"
+    fi
     echo "Thinking: $THINKING"
     echo "Billing currency: $BILLING_CURRENCY"
     echo "Proxy: http://$HOST:$PORT/v1"
@@ -571,6 +631,9 @@ case "${1:-}" in
     ;;
   status)
     status
+    ;;
+  models)
+    models
     ;;
   cost)
     exec "$CODEX_HOME/codex-deepseek-cost.sh" "${2:-summary}"

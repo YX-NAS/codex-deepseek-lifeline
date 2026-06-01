@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- Added a built-in model catalog for DeepSeek V4 Flash, V4 Pro, Chat, and Reasoner.
+- Added custom OpenAI-compatible model support through `~/.codex/deepseek-models.custom.json`.
+- Added `~/.codex/codex-deepseek-switch.sh models` and model catalog details in `status`.
+- Updated the Web dashboard and terminal UI to list catalog models and manage custom model JSON.
+- Updated usage summaries so models without pricing show `estimated_cost=n/a`.
+
 ## 1.3.0
 
 - Added a local Web dashboard at `http://127.0.0.1:4456`.

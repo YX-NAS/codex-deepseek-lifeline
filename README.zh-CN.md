@@ -223,6 +223,9 @@ export CODEX_DEEPSEEK_BILLING_CURRENCY=CNY
 # 查看状态
 ~/.codex/codex-deepseek-switch.sh status
 
+# 查看可用模型
+~/.codex/codex-deepseek-switch.sh models
+
 # 关闭
 ~/.codex/codex-deepseek-switch.sh off
 
@@ -269,6 +272,55 @@ http://127.0.0.1:4456
 ```
 
 它可以展示代理状态、当前模型、目标地址、thinking 状态、费用摘要、最近日志和常用命令。控制台可以刷新状态、切换模型和关闭代理，但不会在网页中接收或保存 API Key；如果当前桌面环境没有 Key，请回到终端运行 `~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro`。
+
+## 模型目录与自定义模型
+
+`v1.4.0` 内置 DeepSeek 官方模型目录：
+
+- `deepseek-v4-flash`
+- `deepseek-v4-pro`
+- `deepseek-chat`
+- `deepseek-reasoner`
+
+查看模型：
+
+```bash
+~/.codex/codex-deepseek-switch.sh models
+```
+
+`status` 会显示当前模型的显示名、供应商、目标地址、来源和是否有价格信息。未登记价格的模型仍可使用，但费用估算会显示 `n/a`。
+
+自定义 OpenAI-compatible 模型写入：
+
+```text
+~/.codex/deepseek-models.custom.json
+```
+
+示例：
+
+```json
+{
+  "models": [
+    {
+      "id": "my-compatible-model",
+      "displayName": "My Compatible Model",
+      "provider": "Custom",
+      "targetBase": "https://api.example.com",
+      "billingCurrency": "USD",
+      "pricesPer1M": {
+        "USD": {
+          "inputCacheHit": 0,
+          "inputCacheMiss": 0.2,
+          "output": 0.6
+        }
+      },
+      "notes": "OpenAI-compatible Chat Completions endpoint"
+    }
+  ]
+}
+```
+
+Web 控制台也可以查看模型目录并保存自定义模型 JSON。若 JSON 格式错误，官方内置模型仍会正常可用。
 
 ## 配置项
 

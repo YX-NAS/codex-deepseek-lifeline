@@ -6,6 +6,12 @@ const https = require("node:https");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+let modelCatalog;
+try {
+  modelCatalog = require("./lib/model-catalog");
+} catch {
+  modelCatalog = require("../lib/model-catalog");
+}
 
 const PORT = Number(process.env.CODEX_DEEPSEEK_PROXY_PORT || "4446");
 const HOST = process.env.CODEX_DEEPSEEK_PROXY_HOST || "127.0.0.1";
@@ -17,20 +23,11 @@ const MAX_CONCURRENT = Number(process.env.CODEX_PROXY_MAX_CONCURRENT || "1");
 const USAGE_LOG = process.env.CODEX_DEEPSEEK_USAGE_LOG || path.join(os.homedir(), ".codex", "deepseek-usage.jsonl");
 const BILLING_CURRENCY = resolveBillingCurrency(process.env.CODEX_DEEPSEEK_BILLING_CURRENCY || "auto");
 
-const PRICES_PER_1M = {
-  USD: {
-    "deepseek-v4-flash": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
-    "deepseek-v4-pro": { inputCacheHit: 0.003625, inputCacheMiss: 0.435, output: 0.87 },
-    "deepseek-chat": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 },
-    "deepseek-reasoner": { inputCacheHit: 0.0028, inputCacheMiss: 0.14, output: 0.28 }
-  },
-  CNY: {
-    "deepseek-v4-flash": { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 },
-    "deepseek-v4-pro": { inputCacheHit: 0.025, inputCacheMiss: 3, output: 6 },
-    "deepseek-chat": { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 },
-    "deepseek-reasoner": { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 }
-  }
-};
+const RESOLVED_MODEL = modelCatalog.resolveModel(MODEL_NAME, {
+  targetOverride: TARGET_BASE,
+  billingCurrency: BILLING_CURRENCY,
+  thinking: THINKING_MODE
+});
 
 if (!API_KEY) {
   console.error("CODEX_DEEPSEEK_KEY is not set.");
@@ -392,8 +389,11 @@ function usageTokens(usage) {
 }
 
 function estimateCost(model, usage) {
-  const priceTable = PRICES_PER_1M[BILLING_CURRENCY] || PRICES_PER_1M.USD;
-  const prices = priceTable[model] || priceTable[MODEL_NAME];
+  const prices = modelCatalog.priceForModel(model, BILLING_CURRENCY, {
+    targetOverride: TARGET_BASE,
+    billingCurrency: BILLING_CURRENCY,
+    thinking: THINKING_MODE
+  });
   const tokens = usageTokens(usage);
   if (!prices || !usage) return { tokens, amount: null, prices: null, currency: BILLING_CURRENCY };
 
@@ -712,6 +712,9 @@ const server = http.createServer(async (req, res) => {
       status: "ok",
       target: TARGET_BASE,
       model: MODEL_NAME,
+      model_display: RESOLVED_MODEL.displayName,
+      model_source: RESOLVED_MODEL.source,
+      model_has_pricing: RESOLVED_MODEL.hasPricing,
       thinking: THINKING_MODE,
       usage_log: USAGE_LOG,
       billing_currency: BILLING_CURRENCY,
@@ -739,6 +742,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`codex-deepseek-lifeline proxy listening on http://${HOST}:${PORT}`);
   console.log(`target=${TARGET_BASE} model=${MODEL_NAME} thinking=${THINKING_MODE}`);
+  if (RESOLVED_MODEL.warning) console.log(`model_warning=${RESOLVED_MODEL.warning}`);
   console.log(`usage_log=${USAGE_LOG}`);
   console.log(`billing_currency=${BILLING_CURRENCY}`);
 });

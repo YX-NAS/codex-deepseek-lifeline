@@ -6,6 +6,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { execFile } = require("node:child_process");
+let modelCatalog;
+try {
+  modelCatalog = require("./lib/model-catalog");
+} catch {
+  modelCatalog = require("../lib/model-catalog");
+}
 
 const CODEX_HOME = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 const HOST = process.env.CODEX_DEEPSEEK_DASHBOARD_HOST || "127.0.0.1";
@@ -97,8 +103,8 @@ function summarizeUsage() {
   const today = localDateString(new Date());
   const summary = {
     source: USAGE_LOG,
-    total: { requests: 0, input: 0, output: 0, cost: {} },
-    today: { requests: 0, input: 0, output: 0, cost: {} },
+    total: { requests: 0, input: 0, output: 0, cost: {}, unknownCost: false },
+    today: { requests: 0, input: 0, output: 0, cost: {}, unknownCost: false },
     byModel: {}
   };
 
@@ -111,7 +117,7 @@ function summarizeUsage() {
     }
     const tokens = record.tokens || {};
     const currency = record.billing_currency || (record.estimated_usd ? "USD" : "UNKNOWN");
-    const amount = record.estimated_amount || record.estimated_usd || {};
+    const amount = record.estimated_amount || record.estimated_usd || null;
     const model = record.model || "unknown";
     const rowDate = record.timestamp ? localDateString(new Date(record.timestamp)) : "";
 
@@ -119,14 +125,15 @@ function summarizeUsage() {
       bucket.requests += 1;
       bucket.input += tokens.input || 0;
       bucket.output += tokens.output || 0;
-      bucket.cost[currency] = (bucket.cost[currency] || 0) + (amount.total || 0);
+      if (amount && typeof amount.total === "number") bucket.cost[currency] = (bucket.cost[currency] || 0) + amount.total;
+      else bucket.unknownCost = true;
     };
 
     add(summary.total);
     if (rowDate === today) add(summary.today);
 
     if (!summary.byModel[model]) {
-      summary.byModel[model] = { requests: 0, input: 0, output: 0, cost: {} };
+      summary.byModel[model] = { requests: 0, input: 0, output: 0, cost: {}, unknownCost: false };
     }
     add(summary.byModel[model]);
   }
@@ -176,6 +183,13 @@ async function statusPayload() {
   ]);
   const configText = readIfExists(CONFIG);
   const fallbackConfigText = readIfExists(DEEPSEEK_CONFIG);
+  const currentModel = health.data?.model || modelEnv || parseConfigModel(configText);
+  const resolvedModel = modelCatalog.resolveModel(currentModel || "deepseek-v4-flash", {
+    codexHome: CODEX_HOME,
+    targetOverride: health.data?.target || undefined,
+    billingCurrency: health.data?.billing_currency || currencyEnv || "auto",
+    thinking: health.data?.thinking || thinkingEnv || "disabled"
+  });
   return {
     proxy: {
       online: health.online,
@@ -189,6 +203,7 @@ async function statusPayload() {
       fallbackModel: parseConfigModel(fallbackConfigText),
       fallbackBaseUrl: parseConfigBaseUrl(fallbackConfigText)
     },
+    model: resolvedModel,
     desktopEnv: {
       model: modelEnv,
       thinking: thinkingEnv,
@@ -223,6 +238,14 @@ async function apiOff(_req, res) {
   json(res, result.ok ? 200 : 500, result);
 }
 
+async function apiCustomModels(req, res) {
+  const body = await readJson(req);
+  const models = Array.isArray(body) ? body : Array.isArray(body.models) ? body.models : [];
+  const file = modelCatalog.customModelsPath(CODEX_HOME);
+  fs.writeFileSync(file, `${JSON.stringify({ models }, null, 2)}\n`);
+  json(res, 200, modelCatalog.loadModelCatalog({ codexHome: CODEX_HOME }));
+}
+
 const HTML = String.raw`<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -246,11 +269,11 @@ const HTML = String.raw`<!doctype html>
     .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--red); }
     .online .dot { background: var(--green); }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-    button, input { border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; font: inherit; background: #fff; color: var(--text); }
+    button, input, select { border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; font: inherit; background: #fff; color: var(--text); }
     button { cursor: pointer; font-weight: 600; }
     button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
     button.danger { background: var(--red); border-color: var(--red); color: #fff; }
-    input { min-width: 240px; }
+    input, select { min-width: 240px; }
     pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.55; color: #263244; }
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -279,6 +302,7 @@ const HTML = String.raw`<!doctype html>
       </section>
       <section class="panel span-8">
         <div class="label">Controls</div>
+        <select id="modelSelect" aria-label="Known models" onchange="document.getElementById('modelInput').value=this.value"></select>
         <input id="modelInput" value="deepseek-v4-pro" aria-label="Model name">
         <div class="actions">
           <button class="primary" onclick="switchModel()">Switch Model</button>
@@ -298,9 +322,19 @@ const HTML = String.raw`<!doctype html>
       <section class="panel span-6">
         <div class="label">Common Commands</div>
         <pre>~/.codex/codex-deepseek-switch.sh status
+~/.codex/codex-deepseek-switch.sh models
 ~/.codex/codex-deepseek-switch.sh on deepseek-v4-pro
 ~/.codex/codex-deepseek-switch.sh cost
 ~/.codex/codex-deepseek-switch.sh off</pre>
+      </section>
+      <section class="panel span-12">
+        <div class="label">Model Catalog</div>
+        <div id="models">Loading...</div>
+      </section>
+      <section class="panel span-12">
+        <div class="label">Custom Models JSON</div>
+        <textarea id="customModels" rows="8" style="width:100%; border:1px solid var(--line); border-radius:7px; padding:10px; font:12px ui-monospace, SFMono-Regular, Menlo, monospace;"></textarea>
+        <div class="actions"><button onclick="saveCustomModels()">Save Custom Models</button></div>
       </section>
       <section class="panel span-12">
         <div class="label">Recent Proxy Log</div>
@@ -319,13 +353,18 @@ const HTML = String.raw`<!doctype html>
       const entries = Object.entries(cost || {});
       return entries.length ? entries.map(([k, v]) => k + " " + Number(v).toFixed(6)).join(", ") : "n/a";
     }
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
     async function refreshStatus() {
       const data = await getJson("/api/status");
       const badge = document.getElementById("proxyBadge");
       badge.className = "badge " + (data.proxy.online ? "online" : "");
       badge.querySelector("span:last-child").textContent = data.proxy.online ? "Online" : "Offline";
-      document.getElementById("model").textContent = data.proxy.health?.model || data.desktopEnv.model || data.config.model || "-";
       document.getElementById("target").textContent = data.proxy.health?.target || data.config.baseUrl || "-";
+      document.getElementById("model").textContent =
+        (data.model?.displayName || data.proxy.health?.model || data.desktopEnv.model || data.config.model || "-") +
+        (data.model?.hasPricing ? "" : " (pricing n/a)");
       document.getElementById("env").textContent =
         "CODEX_MODEL=" + (data.desktopEnv.model || "") + "\n" +
         "THINKING=" + (data.desktopEnv.thinking || "") + "\n" +
@@ -335,12 +374,29 @@ const HTML = String.raw`<!doctype html>
     async function refreshUsage() {
       const data = await getJson("/api/usage");
       const rows = Object.entries(data.byModel || {}).map(([model, row]) =>
-        "<tr><td>" + model + "</td><td>" + row.requests + "</td><td>" + row.input + "</td><td>" + row.output + "</td><td>" + costText(row.cost) + "</td></tr>"
+        "<tr><td>" + model + "</td><td>" + row.requests + "</td><td>" + row.input + "</td><td>" + row.output + "</td><td>" + (row.unknownCost ? "n/a" : costText(row.cost)) + "</td></tr>"
       ).join("");
       document.getElementById("usage").innerHTML =
-        "<p>Total: " + data.total.requests + " requests, " + costText(data.total.cost) + "</p>" +
-        "<p>Today: " + data.today.requests + " requests, " + costText(data.today.cost) + "</p>" +
+        "<p>Total: " + data.total.requests + " requests, " + (data.total.unknownCost ? "n/a" : costText(data.total.cost)) + "</p>" +
+        "<p>Today: " + data.today.requests + " requests, " + (data.today.unknownCost ? "n/a" : costText(data.today.cost)) + "</p>" +
         "<table><thead><tr><th>Model</th><th>Req</th><th>Input</th><th>Output</th><th>Cost</th></tr></thead><tbody>" + rows + "</tbody></table>";
+    }
+    async function refreshModels() {
+      const data = await getJson("/api/models");
+      const select = document.getElementById("modelSelect");
+      select.innerHTML = data.models.map((m) => "<option value='" + esc(m.id) + "'>" + esc(m.displayName) + " (" + esc(m.id) + ")</option>").join("");
+      const rows = data.models.map((m) =>
+        "<tr><td>" + esc(m.id) + "</td><td>" + esc(m.displayName) + "</td><td>" + esc(m.provider || "") + "</td><td>" + (m.codexToolsRecommended ? "yes" : "caution") + "</td><td>" + (m.pricesPer1M ? "yes" : "n/a") + "</td><td>" + esc(m.source || "") + "</td></tr>"
+      ).join("");
+      const customModels = data.models.filter((m) => m.source === "custom").map(({ source, custom, ...rest }) => rest);
+      document.getElementById("models").innerHTML =
+        (data.errors.length ? "<p class='muted'>" + data.errors.map(esc).join("<br>") + "</p>" : "") +
+        "<p class='muted'>Custom file: " + esc(data.customFile) + "</p>" +
+        "<table><thead><tr><th>ID</th><th>Name</th><th>Provider</th><th>Tools</th><th>Pricing</th><th>Source</th></tr></thead><tbody>" + rows + "</tbody></table>";
+      if (!document.getElementById("customModels").value.trim()) {
+        document.getElementById("customModels").value = customModels.length ? JSON.stringify({ models: customModels }, null, 2) : "";
+      }
+      document.getElementById("customModels").placeholder = JSON.stringify({ models: [{ id: "custom-model", displayName: "Custom Model", provider: "Custom", targetBase: "https://api.example.com", notes: "OpenAI-compatible endpoint" }] }, null, 2);
     }
     async function refreshLogs() {
       const data = await getJson("/api/logs");
@@ -348,7 +404,18 @@ const HTML = String.raw`<!doctype html>
     }
     async function refreshAll() {
       document.getElementById("message").textContent = "";
-      await Promise.all([refreshStatus(), refreshUsage(), refreshLogs()]);
+      await Promise.all([refreshStatus(), refreshUsage(), refreshLogs(), refreshModels()]);
+    }
+    async function saveCustomModels() {
+      try {
+        const text = document.getElementById("customModels").value.trim();
+        const body = text ? JSON.parse(text) : { models: [] };
+        await getJson("/api/custom-models", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        document.getElementById("message").textContent = "Custom models saved.";
+      } catch (error) {
+        document.getElementById("message").textContent = "Invalid custom model JSON: " + (error.message || JSON.stringify(error));
+      }
+      await refreshModels();
     }
     async function switchModel() {
       const model = document.getElementById("modelInput").value.trim();
@@ -374,10 +441,12 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && req.url === "/") return text(res, 200, HTML, "text/html; charset=utf-8");
     if (req.method === "GET" && req.url === "/api/status") return json(res, 200, await statusPayload());
+    if (req.method === "GET" && req.url === "/api/models") return json(res, 200, modelCatalog.loadModelCatalog({ codexHome: CODEX_HOME }));
     if (req.method === "GET" && req.url === "/api/usage") return json(res, 200, summarizeUsage());
     if (req.method === "GET" && req.url === "/api/logs") return json(res, 200, { source: PROXY_LOG, lines: tailLines(PROXY_LOG, 80) });
     if (req.method === "POST" && req.url === "/api/switch") return apiSwitch(req, res);
     if (req.method === "POST" && req.url === "/api/off") return apiOff(req, res);
+    if (req.method === "POST" && req.url === "/api/custom-models") return apiCustomModels(req, res);
     json(res, 404, { error: "Not found" });
   } catch (error) {
     json(res, 500, { error: error.message });
